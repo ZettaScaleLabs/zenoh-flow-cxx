@@ -1,0 +1,20 @@
+[package]
+name = "operator-wrapper"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "operator_wrapper"
+path = "./src/lib.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+cxx = "1.0"
+zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", branch = "master" }
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
