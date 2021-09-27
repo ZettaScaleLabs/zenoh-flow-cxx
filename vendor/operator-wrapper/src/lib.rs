@@ -15,8 +15,9 @@
 use cxx::UniquePtr;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use zenoh_flow::{
-    downcast_mut, runtime::message::SerDeData, Component, ComponentOutput, Data, DowncastAny,
-    InputRule, Operator, OutputRule, State, Token, TokenAction, ZFError, ZFResult,
+    downcast_mut, Component, ComponentOutput, SerDeData, DowncastAny,
+    InputRule, Operator, OutputRule, State, Token, TokenAction, ZFError, ZFResult, Data,
+    zf_data_raw,
 };
 
 extern crate zenoh_flow;
@@ -287,7 +288,7 @@ impl OutputRule for MyOperator {
         &self,
         _context: &mut zenoh_flow::Context,
         _dyn_state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, std::sync::Arc<dyn zenoh_flow::Data>>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         let mut results = HashMap::with_capacity(outputs.len());
         // NOTE: default output rule for now.
@@ -305,7 +306,7 @@ impl Operator for MyOperator {
         context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, std::sync::Arc<dyn zenoh_flow::Data>>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
         let mut cxx_context = ffi::Context::from(context);
         let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
         let result_cxx_inputs: Result<Vec<ffi::Input>, ZFError> = inputs
@@ -322,12 +323,12 @@ impl Operator for MyOperator {
             }
         };
 
-        let mut result: HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>> =
+        let mut result: HashMap<zenoh_flow::PortId, SerDeData> =
             HashMap::with_capacity(cxx_outputs.len());
         for cxx_output in cxx_outputs.into_iter() {
             result.insert(
                 cxx_output.port_id.into(),
-                Arc::new(ffi::Data::new(cxx_output.data)),
+                zf_data_raw!(cxx_output.data),
             );
         }
 
