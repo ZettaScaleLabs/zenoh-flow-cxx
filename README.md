@@ -20,7 +20,7 @@ The generation of the library is a two-steps process:
 1. generating the header and source files bridging Rust and C++,
 2. generating the shared library.
 
-Two separate CMake files are provided in order to accomplish both tasks.
+A single CMake file is provided in order to accomplish both tasks.
 
 ### Requirements
 
@@ -31,26 +31,8 @@ Two separate CMake files are provided in order to accomplish both tasks.
   cargo install cxxbridge-cmd
   ```
 
-### Generating the hearder and source files
 
-On Unix-based machines.
-
-```sh
-cd vendor/operator-wrapper
-mkdir build && cd build
-cmake ..
-make
-```
-
-This will generate two files:
-- `include/operator_wrapper.hpp`
-- `src/operator_wrapper.cpp`
-
-Under the hood the `cxxbridge` command is used and parses the file `vendor/operator-wrapper/src/lib.rs` to generate the bindings needed by Zenoh Flow.
-
-:warning: As of 2021-09-24 it seems the generated header file is "incorrect" and a manual edit (realized in the second CMake file) is required.
-
-### Generating the shared library
+### Building your C++ component
 
 On Unix-based machines.
 
@@ -61,11 +43,13 @@ make
 ```
 
 This will:
-1. "patch" the header file `include/operator_wrapper.hpp`,
-2. compile the Rust code located under the `vendor/operator_wrapper` folder and generate a static library `liboperator_wrapper.a`,
-3. compile the C++ wrapper code,
-4. compile the operator,
-5. link everything together producing `build/libcxx_operator.dylib` (`.so` on Linux).
+1. generate the rust library that wraps the Zenoh-Flow APIs,
+2. call `cxxbridge` to generate the bindings needed by Zenoh Flow, in particular the header file `include/wrapper.hpp` and the source file `src/wrapper.cpp`,
+3. "patch" the header file `include/wrapper.hpp`,
+4. compile the Rust code located under the `vendor/wrapper` folder and generate a static library `libwrapper.a`,
+5. compile the C++ wrapper code,
+6. compile the operator,
+7. link everything together producing `build/libcxx_operator.dylib` (`.so` on Linux).
 
 The `libcxx_operator` library can then be loaded by Zenoh Flow!
 
