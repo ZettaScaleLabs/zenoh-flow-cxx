@@ -1,16 +1,16 @@
 [package]
-name = "operator-wrapper"
+name = "wrapper"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
-name = "operator_wrapper"
-path = "src/lib.rs"
+name = "wrapper"
+path = "./src/lib.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
 cxx = "1.0"
-zenoh-flow = { git = "https://github.com/atolab/zenoh-flow.git", branch = "feat/raw-data" }
+zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", branch = "master" }
 
 [profile.release]
 opt-level = 3

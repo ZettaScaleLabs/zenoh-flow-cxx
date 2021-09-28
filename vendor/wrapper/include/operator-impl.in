@@ -1,0 +1,109 @@
+pub struct MyOperator;
+
+impl Component for MyOperator {
+    fn initialize(
+        &self,
+        configuration: &Option<std::collections::HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::State> {
+        let configuration = match configuration {
+            Some(config) => ffi::ConfigurationMap::from(config.clone()),
+            None => ffi::ConfigurationMap { map: Vec::new() },
+        };
+
+        let state = {
+            #[allow(unused_unsafe)]
+            unsafe {
+                ffi::initialize(&configuration)
+            }
+        };
+        Box::new(StateWrapper { state })
+    }
+
+    fn clean(&self, _state: &mut Box<dyn zenoh_flow::State>) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+impl InputRule for MyOperator {
+    fn input_rule(
+        &self,
+        context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
+    ) -> zenoh_flow::ZFResult<bool> {
+        let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
+        let res_cxx_tokens: Result<Vec<ffi::Token>, ZFError> = tokens
+            .iter()
+            .map(|(port_id, token)| ffi::Token::from_token(token, port_id))
+            .collect();
+        let mut cxx_tokens = res_cxx_tokens?;
+        let mut cxx_context = ffi::Context::from(context);
+
+        {
+            #[allow(unused_unsafe)]
+            unsafe {
+                ffi::input_rule(&mut cxx_context, &mut wrapper.state, &mut cxx_tokens)
+                    .map_err(|_| ZFError::GenericError)
+            }
+        }
+    }
+}
+
+impl OutputRule for MyOperator {
+    fn output_rule(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        _dyn_state: &mut Box<dyn zenoh_flow::State>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
+        let mut results = HashMap::with_capacity(outputs.len());
+        // NOTE: default output rule for now.
+        for (port_id, data) in outputs {
+            results.insert(port_id, ComponentOutput::Data(data));
+        }
+
+        Ok(results)
+    }
+}
+
+impl Operator for MyOperator {
+    fn run(
+        &self,
+        context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+        inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::DataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
+        let mut cxx_context = ffi::Context::from(context);
+        let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
+        let result_cxx_inputs: Result<Vec<ffi::Input>, ZFError> = inputs
+            .iter()
+            .map(|(port_id, data_message)| ffi::Input::from_data_message(port_id, data_message))
+            .collect();
+        let cxx_inputs = result_cxx_inputs?;
+
+        let cxx_outputs = {
+            #[allow(unused_unsafe)]
+            unsafe {
+                ffi::run(&mut cxx_context, &mut wrapper.state, cxx_inputs)
+                    .map_err(|_| ZFError::GenericError)?
+            }
+        };
+
+        let mut result: HashMap<zenoh_flow::PortId, SerDeData> =
+            HashMap::with_capacity(cxx_outputs.len());
+        for cxx_output in cxx_outputs.into_iter() {
+            result.insert(
+                cxx_output.port_id.into(),
+                zf_data_raw!(cxx_output.data),
+            );
+        }
+
+        Ok(result)
+    }
+}
+
+zenoh_flow::export_operator!(register);
+
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(MyOperator) as Arc<dyn Operator>)
+}

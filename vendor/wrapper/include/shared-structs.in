@@ -1,0 +1,49 @@
+    pub struct Context {
+        pub mode: usize,
+    }
+
+    pub enum TokenStatus {
+        Pending,
+        Ready,
+        DeadlineMiss,
+    }
+
+    pub enum TokenAction {
+        Consume,
+        Drop,
+        Keep,
+        Postpone,
+        Wait,
+    }
+
+    pub struct Token {
+        pub status: TokenStatus,
+        pub action: TokenAction,
+        pub port_id: String,
+        pub data: Vec<u8>,
+        pub timestamp: u64,
+    }
+
+    pub struct Input {
+        pub port_id: String,
+        pub data: Vec<u8>,
+        pub timestamp: u64,
+    }
+
+    pub struct Output {
+        pub port_id: String,
+        pub data: Vec<u8>,
+    }
+
+    pub struct Data {
+        pub bytes: Vec<u8>,
+    }
+
+    pub struct Configuration {
+        pub key: String,
+        pub value: String,
+    }
+
+    pub struct ConfigurationMap {
+        pub map: Vec<Configuration>,
+    }

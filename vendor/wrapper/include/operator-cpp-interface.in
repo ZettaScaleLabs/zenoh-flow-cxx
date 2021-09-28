@@ -1,0 +1,20 @@
+    unsafe extern "C++" {
+        include!("operator.hpp");
+
+        type State;
+
+        fn initialize(configuration: &ConfigurationMap) -> UniquePtr<State>;
+
+        fn input_rule(
+            context: &mut Context,
+            state: &mut UniquePtr<State>,
+            tokens: &mut Vec<Token>,
+        ) -> Result<bool>;
+
+        fn run(
+            context: &mut Context,
+            state: &mut UniquePtr<State>,
+            inputs: Vec<Input>,
+        ) -> Result<Vec<Output>>;
+    }
+}

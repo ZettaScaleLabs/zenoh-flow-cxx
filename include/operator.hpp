@@ -13,7 +13,7 @@
 //
 
 #pragma once
-#include <operator_wrapper.hpp>
+#include <wrapper.hpp>
 
 namespace zenoh {
 namespace flow {

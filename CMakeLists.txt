@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(ZenohFlowCxxOperator VERSION 0.1.0)
+project(ZenohFlowCxxComponent VERSION 0.1.0)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -27,34 +27,72 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(target_lib "cxx_operator")
-set(operator_src "src/operator.cpp")
-set(cxxbridge_header_out ${CMAKE_SOURCE_DIR}/include/operator_wrapper.hpp)
-set(cxxbridge_source_out ${CMAKE_SOURCE_DIR}/src/operator_wrapper.cpp)
-set(cxxwrapper_lib ${CMAKE_SOURCE_DIR}/vendor/operator-wrapper/target/release/liboperator_wrapper.a)
+# TODO: Windows compatibility.
+find_program(CXXBRIDGE cxxbridge REQUIRED PATHS $ENV{HOME}/.cargo/bin)
+message(STATUS "Using cxxbridge: ${CXXBRIDGE}")
 
-file(READ ${cxxbridge_header_out} header_error)
-string(REPLACE "using State = ::zenoh::flow::State;"
-  ""  header_ok
-  "${header_error}")
-file(WRITE ${cxxbridge_header_out} "${header_ok}")
+set(CMAKE_SCRIPTS_DIR ${CMAKE_SOURCE_DIR}/cmake)
 
-add_custom_target(wrapper_target ALL DEPENDS ${cxxwrapper_lib})
+#
+# First step: generating the bridge files.
+#
+# The generated lib.rs file will be parsed by `cxxbridge` to generate the
+# bindings between Zenoh Flow and the C++ components.
+#
+set(wrapper_dir  ${CMAKE_SOURCE_DIR}/vendor/wrapper)
+set(include_dir  ${wrapper_dir}/include)
+
+set(cxxbridge_in         ${wrapper_dir}/src/lib.rs)
+set(cxxbridge_source_out ${CMAKE_SOURCE_DIR}/src/wrapper.cpp)
+set(cxxbridge_header_out ${CMAKE_SOURCE_DIR}/include/wrapper.hpp)
+
+add_custom_target(CxxBridge ALL
+  DEPENDS ${cxxbridge_in} ${cxxbridge_header_out} ${cxxbridge_source_out}
+  )
+
+add_custom_command(
+  OUTPUT ${cxxbridge_in} ${cxxbridge_header_out} ${cxxbridge_source_out}
+  COMMAND ${CMAKE_COMMAND} -Dinclude_dir=${include_dir} -Dcxxbridge_in=${cxxbridge_in} -P ${CMAKE_SCRIPTS_DIR}/GenerateLibRs.cmake
+  COMMAND ${CXXBRIDGE} ${cxxbridge_in} --output ${cxxbridge_source_out}
+  COMMAND ${CXXBRIDGE} ${cxxbridge_in} --header --output ${cxxbridge_header_out}
+  COMMAND ${CMAKE_COMMAND} -DHEADER=${cxxbridge_header_out} -P ${CMAKE_SCRIPTS_DIR}/Patcher.cmake
+  COMMENT "Generating CXX bridge:"
+  )
+
+#
+# Second step: generating the static library containing the Rust "glue".
+#
+# This part is actually called from the top-level CMakeLists file. The static
+# library will be linked with the resulting component shared library.
+set(cxxwrapper_lib ${wrapper_dir}/target/release/libwrapper.a)
+
+add_custom_target(WrapperLib ALL DEPENDS ${cxxwrapper_lib})
 add_custom_command(
   OUTPUT ${cxxwrapper_lib}
+  COMMAND cargo update
   COMMAND cargo build --release
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor/operator-wrapper
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor/wrapper
+  DEPENDS ${cxxbridge_in}
+  COMMENT "Generating Rust library:"
   )
 
 add_library(CxxWrapper STATIC IMPORTED GLOBAL)
-add_dependencies(CxxWrapper wrapper_target)
+add_dependencies(CxxWrapper WrapperLib)
 set_target_properties(CxxWrapper
   PROPERTIES
   IMPORTED_LOCATION ${cxxwrapper_lib}
   )
 
-add_library(${target_lib} SHARED
-  ${operator_src}
+#
+# Third step: generating the final component shared library.
+#
+
+set(component_lib cxx_operator)
+set(component_src src/operator.cpp)
+
+add_library(${component_lib} SHARED
+  ${component_src}
   ${cxxbridge_source_out})
-target_include_directories(${target_lib} PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(${target_lib} CxxWrapper)
+add_dependencies(${component_lib} CxxBridge)
+target_include_directories(${component_lib} PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(${component_lib} PUBLIC CxxWrapper)
