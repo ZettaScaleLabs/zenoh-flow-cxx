@@ -63,67 +63,8 @@ impl Data for ffi::Data {
     }
 }
 
-impl ffi::Token {
-    pub fn from_token(token: &Token, port_id: &str) -> ZFResult<Self> {
-        match token {
-            Token::NotReady => Ok(Self {
-                status: ffi::TokenStatus::Pending,
-                action: ffi::TokenAction::Wait,
-                port_id: port_id.to_string(),
-                data: Vec::new(),
-                timestamp: 0,
-            }),
-
-            Token::Ready(token) => {
-                let data = match &token.data.data {
-                    SerDeData::Serialized(ser) => ser.as_ref().clone(),
-                    SerDeData::Deserialized(de) => de.try_serialize()?,
-                };
-
-                Ok(Self {
-                    status: ffi::TokenStatus::Ready,
-                    action: ffi::TokenAction::Consume,
-                    port_id: port_id.to_string(),
-                    data,
-                    timestamp: token.data.timestamp.get_time().as_u64(),
-                })
-            }
-        }
-    }
-}
-
 impl From<&mut zenoh_flow::Context> for ffi::Context {
     fn from(context: &mut zenoh_flow::Context) -> Self {
         Self { mode: context.mode }
-    }
-}
-
-impl From<TokenAction> for ffi::TokenAction {
-    fn from(action: TokenAction) -> Self {
-        match action {
-            TokenAction::Consume => ffi::TokenAction::Consume,
-            TokenAction::Drop => ffi::TokenAction::Drop,
-            TokenAction::KeepRun => ffi::TokenAction::Keep,
-            TokenAction::Keep => ffi::TokenAction::Keep,
-            TokenAction::Wait => ffi::TokenAction::Wait,
-        }
-    }
-}
-
-impl ffi::Input {
-    fn from_data_message(
-        port_id: &str,
-        data_message: &zenoh_flow::runtime::message::DataMessage,
-    ) -> ZFResult<Self> {
-        let data = match &data_message.data {
-            SerDeData::Serialized(ser) => ser.as_ref().clone(),
-            SerDeData::Deserialized(de) => de.try_serialize()?,
-        };
-
-        Ok(Self {
-            port_id: port_id.to_string(),
-            data,
-            timestamp: data_message.timestamp.get_time().as_u64(),
-        })
     }
 }

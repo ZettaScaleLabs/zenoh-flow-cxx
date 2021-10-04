@@ -1,0 +1,74 @@
+pub struct MySource;
+
+impl Component for MySource {
+    fn initialize(
+        &self,
+        configuration: &Option<std::collections::HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::State> {
+        let configuration = match configuration {
+            Some(config) => ffi::ConfigurationMap::from(config.clone()),
+            None => ffi::ConfigurationMap { map: Vec::new() },
+        };
+
+        let state = {
+            #[allow(unused_unsafe)]
+            unsafe {
+                ffi::initialize(&configuration)
+            }
+        };
+        Box::new(StateWrapper { state })
+    }
+
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+impl OutputRule for MySource {
+    fn output_rule(
+        &self,
+        _context: &mut Context,
+        _dyn_state: &mut Box<dyn State>,
+        outputs: HashMap<PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
+        let mut results = HashMap::with_capacity(outputs.len());
+        // NOTE: default output rule for now.
+        for (port_id, data) in outputs {
+            results.insert(port_id, ComponentOutput::Data(data));
+        }
+
+        Ok(results)
+    }
+}
+
+#[async_trait]
+impl Source for MySource {
+    async fn run(
+        &self,
+        context: &mut Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+    ) -> ZFResult<HashMap<PortId, SerDeData>> {
+        let mut cxx_context = ffi::Context::from(context);
+        let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
+
+        let cxx_outputs = {
+            #[allow(unused_unsafe)]
+            unsafe {
+                ffi::run(&mut cxx_context, &mut wrapper.state).map_err(|_| ZFError::GenericError)?
+            }
+        };
+
+        let mut result: HashMap<PortId, SerDeData> = HashMap::with_capacity(cxx_outputs.len());
+        for cxx_output in cxx_outputs.into_iter() {
+            result.insert(cxx_output.port_id.into(), zf_data_raw!(cxx_output.data));
+        }
+
+        Ok(result)
+    }
+}
+
+zenoh_flow::export_source!(register);
+
+fn register() -> ZFResult<Arc<dyn Source>> {
+    Ok(Arc::new(MySource) as Arc<dyn Source>)
+}

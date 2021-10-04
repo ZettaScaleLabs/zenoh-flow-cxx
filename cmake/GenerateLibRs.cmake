@@ -15,11 +15,11 @@
 message(STATUS "Generating ${cxxbridge_in}")
 
 # NOTE: the order is important!
-set(1_header_in          ${include_dir}/operator-header.in)
+set(1_header_in          ${include_dir}/${component}-header.in)
 set(2_shared_structs_in  ${include_dir}/shared-structs.in)
-set(3_cpp_interface_in   ${include_dir}/operator-cpp-interface.in)
+set(3_cpp_interface_in   ${include_dir}/${component}-cpp-interface.in)
 set(4_zenoh_flow_glue_in ${include_dir}/zenoh-flow-glue.in)
-set(5_implementation_in  ${include_dir}/operator-impl.in)
+set(5_implementation_in  ${include_dir}/${component}-impl.in)
 
 # Create the list of files to concatenate in order to produce lib/src.rs.
 set(lib_src_parts

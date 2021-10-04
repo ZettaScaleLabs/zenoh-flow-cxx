@@ -20,6 +20,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -32,6 +34,30 @@ find_program(CXXBRIDGE cxxbridge REQUIRED PATHS $ENV{HOME}/.cargo/bin)
 message(STATUS "Using cxxbridge: ${CXXBRIDGE}")
 
 set(CMAKE_SCRIPTS_DIR ${CMAKE_SOURCE_DIR}/cmake)
+
+#
+# Setup: We need to know what we are generating.
+#
+option(SOURCE    "Set the Component to SOURCE")
+option(OPERATOR  "Set the Component to OPERATOR")
+option(SINK      "Set the Component to SINK")
+
+
+if (NOT ${SOURCE} AND NOT ${OPERATOR} AND NOT ${SINK})
+  message(FATAL_ERROR "The type of Component to generate must be specified (i.e., -DOPERATOR=ON, -DSINK=ON, -DSOURCE=ON).")
+elseif ((${SOURCE} AND (${OPERATOR} OR ${SINK})) OR (${OPERATOR} AND (${SOURCE} OR ${SINK})))
+  message(FATAL_ERROR "Only one type of Component can be generated.")
+endif()
+
+if (${SOURCE})
+  set(component source)
+elseif (${SINK})
+  set(component sink)
+elseif (${OPERATOR})
+  set(component operator)
+endif()
+
+set(LIB_NAME "cxx_${component}" CACHE STRING "The name of the generated library.")
 
 #
 # First step: generating the bridge files.
@@ -52,7 +78,7 @@ add_custom_target(CxxBridge ALL
 
 add_custom_command(
   OUTPUT ${cxxbridge_in} ${cxxbridge_header_out} ${cxxbridge_source_out}
-  COMMAND ${CMAKE_COMMAND} -Dinclude_dir=${include_dir} -Dcxxbridge_in=${cxxbridge_in} -P ${CMAKE_SCRIPTS_DIR}/GenerateLibRs.cmake
+  COMMAND ${CMAKE_COMMAND} -Dcomponent=${component} -Dinclude_dir=${include_dir} -Dcxxbridge_in=${cxxbridge_in} -P ${CMAKE_SCRIPTS_DIR}/GenerateLibRs.cmake
   COMMAND ${CXXBRIDGE} ${cxxbridge_in} --output ${cxxbridge_source_out}
   COMMAND ${CXXBRIDGE} ${cxxbridge_in} --header --output ${cxxbridge_header_out}
   COMMAND ${CMAKE_COMMAND} -DHEADER=${cxxbridge_header_out} -P ${CMAKE_SCRIPTS_DIR}/Patcher.cmake
@@ -69,7 +95,7 @@ set(cxxwrapper_lib ${wrapper_dir}/target/release/libwrapper.a)
 add_custom_target(WrapperLib ALL DEPENDS ${cxxwrapper_lib})
 add_custom_command(
   OUTPUT ${cxxwrapper_lib}
-  COMMAND cargo update
+  # COMMAND cargo update
   COMMAND cargo build --release
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor/wrapper
   DEPENDS ${cxxbridge_in}
@@ -86,13 +112,11 @@ set_target_properties(CxxWrapper
 #
 # Third step: generating the final component shared library.
 #
+set(component_src src/${component}.cpp)
 
-set(component_lib cxx_operator)
-set(component_src src/operator.cpp)
-
-add_library(${component_lib} SHARED
+add_library(${LIB_NAME} SHARED
   ${component_src}
   ${cxxbridge_source_out})
-add_dependencies(${component_lib} CxxBridge)
-target_include_directories(${component_lib} PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(${component_lib} PUBLIC CxxWrapper)
+add_dependencies(${LIB_NAME} CxxBridge)
+target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(${LIB_NAME} PUBLIC CxxWrapper)
