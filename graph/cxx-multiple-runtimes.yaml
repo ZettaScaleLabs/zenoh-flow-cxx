@@ -1,0 +1,51 @@
+flow: CxxCounter
+
+operators:
+  - id: CxxCounter
+    uri: file:///Users/julien/dev/atolab/zenoh-flow-cxx/target/libcxx_operator.dylib
+    inputs:
+      - id: tick
+        type: unsigned char
+    outputs:
+      - id: count
+        type: unsigned char
+
+sources:
+  - id: CxxSource
+    uri: file:///Users/julien/dev/atolab/zenoh-flow-cxx/target/libcxx_source.dylib
+    period:
+      duration: 500
+      unit: ms
+    output:
+      id: tick
+      type: unsigned char
+
+sinks:
+  - id: CxxSink
+    uri: file:///Users/julien/dev/atolab/zenoh-flow-cxx/target/libcxx_sink.dylib
+    input:
+      id: count
+      type: unsigned char
+
+links:
+  - from:
+      node: CxxSource
+      output: tick
+    to:
+      node: CxxCounter
+      input: tick
+
+  - from:
+      node: CxxCounter
+      output: count
+    to:
+      node: CxxSink
+      input: count
+
+mapping:
+  - id: CxxSource
+    runtime: source
+  - id: CxxCounter
+    runtime: operator
+  - id: CxxSink
+    runtime: sink

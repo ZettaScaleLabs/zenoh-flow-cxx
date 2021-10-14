@@ -1,9 +1,43 @@
+
+    pub struct Input {
+        pub port_id: String,
+        pub data: Vec<u8>,
+        pub timestamp: u64,
+    }
+
+    pub struct Output {
+        pub port_id: String,
+        pub data: Vec<u8>,
+    }
+
+    pub enum TokenStatus {
+        Pending,
+        Ready,
+        DeadlineMiss,
+    }
+
+    pub enum TokenAction {
+        Consume,
+        Drop,
+        Keep,
+        Postpone,
+        Wait,
+    }
+
+    pub struct Token {
+        pub status: TokenStatus,
+        pub action: TokenAction,
+        pub port_id: String,
+        pub data: Vec<u8>,
+        pub timestamp: u64,
+    }
+
     unsafe extern "C++" {
         include!("operator.hpp");
 
         type State;
 
-        fn initialize(configuration: &ConfigurationMap) -> UniquePtr<State>;
+        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
 
         fn input_rule(
             context: &mut Context,

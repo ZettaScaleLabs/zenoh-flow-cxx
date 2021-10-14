@@ -36,7 +36,7 @@ std::uint8_t State::getCounter(void) {
 }
 
 std::unique_ptr<State>
-initialize(const ConfigurationMap &configuration) {
+initialize(const rust::Vec<Configuration> &configuration) {
   return std::make_unique<State>();
 }
 

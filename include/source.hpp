@@ -24,8 +24,10 @@ public:
 };
 
 std::unique_ptr<State>
-initialize(const ConfigurationMap &configuration);
-rust::Vec<Output> run(Context &context, std::unique_ptr<State> &state);
+initialize(const rust::Vec<Configuration> &configuration);
+
+rust::Vec<unsigned char>
+run(Context &context, std::unique_ptr<State> &state);
 
 } // namespace flow
 } // namespace zenoh

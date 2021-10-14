@@ -13,17 +13,19 @@
 //
 
 #include <iostream>
+#include <memory>
+#include <ostream>
 #include <source.hpp>
 
 namespace zenoh {
 namespace flow {
 
-using byte_t = unsigned char ;
+using byte_t = unsigned char;
 
 State::State() {}
 
 std::unique_ptr<State>
-initialize(const ConfigurationMap &configuration)
+initialize(const rust::Vec<Configuration> &configuration)
 {
   //
   // /!\ NOTE: `make_unique` requires "c++14"
@@ -31,21 +33,16 @@ initialize(const ConfigurationMap &configuration)
   return std::make_unique<State>();
 }
 
-rust::Vec<Output>
+rust::Vec<byte_t>
 run(Context &context, std::unique_ptr<State> &state)
 {
   std::string input;
 
   std::cout << "Press ENTER.";
   std::getline(std::cin, input);
-  std::cout << std::endl;
 
   rust::Vec<byte_t> tick = { 1 };
-
-  Output output { "tick", tick };
-
-  rust::Vec<Output> results { output };
-  return results;
+  return tick;
 }
 } // namespace flow
 } // namespace zenoh

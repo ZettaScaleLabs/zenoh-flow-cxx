@@ -59,20 +59,26 @@ impl ffi::Input {
 
 pub struct MyOperator;
 
-impl Component for MyOperator {
+impl Node for MyOperator {
     fn initialize(
         &self,
         configuration: &Option<std::collections::HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::State> {
-        let configuration = match configuration {
-            Some(config) => ffi::ConfigurationMap::from(config.clone()),
-            None => ffi::ConfigurationMap { map: Vec::new() },
+        let cxx_configuration = match configuration {
+            Some(config) => config
+                .iter()
+                .map(|(key, value)| ffi::Configuration {
+                    key: key.clone(),
+                    value: value.clone(),
+                })
+                .collect(),
+            None => vec![],
         };
 
         let state = {
             #[allow(unused_unsafe)]
             unsafe {
-                ffi::initialize(&configuration)
+                ffi::initialize(&cxx_configuration)
             }
         };
         Box::new(StateWrapper { state })
@@ -83,7 +89,7 @@ impl Component for MyOperator {
     }
 }
 
-impl InputRule for MyOperator {
+impl Operator for MyOperator {
     fn input_rule(
         &self,
         context: &mut zenoh_flow::Context,
@@ -106,26 +112,7 @@ impl InputRule for MyOperator {
             }
         }
     }
-}
 
-impl OutputRule for MyOperator {
-    fn output_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        _dyn_state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
-        let mut results = HashMap::with_capacity(outputs.len());
-        // NOTE: default output rule for now.
-        for (port_id, data) in outputs {
-            results.insert(port_id, ComponentOutput::Data(data));
-        }
-
-        Ok(results)
-    }
-}
-
-impl Operator for MyOperator {
     fn run(
         &self,
         context: &mut zenoh_flow::Context,
@@ -158,6 +145,21 @@ impl Operator for MyOperator {
         }
 
         Ok(result)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        _dyn_state: &mut Box<dyn zenoh_flow::State>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::NodeOutput>> {
+        let mut results = HashMap::with_capacity(outputs.len());
+        // NOTE: default output rule for now.
+        for (port_id, data) in outputs {
+            results.insert(port_id, NodeOutput::Data(data));
+        }
+
+        Ok(results)
     }
 }
 

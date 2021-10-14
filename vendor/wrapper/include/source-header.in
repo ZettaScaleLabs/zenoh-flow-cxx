@@ -14,10 +14,9 @@
 
 use async_trait::async_trait;
 use cxx::UniquePtr;
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 use zenoh_flow::{
-    downcast_mut, zf_data_raw, Component, ComponentOutput, Context, Data, DowncastAny, OutputRule,
-    PortId, SerDeData, Source, State, ZFError, ZFResult,
+    downcast_mut, zf_data_raw, Context, Node, SerDeData, Source, State, ZFError, ZFResult,
 };
 
 extern crate zenoh_flow;

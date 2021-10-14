@@ -1,20 +1,19 @@
+    pub struct Input {
+        pub data: Vec<u8>,
+        pub timestamp: u64,
+    }
+
     unsafe extern "C++" {
         include!("sink.hpp");
 
         type State;
 
-        fn initialize(configuration: &ConfigurationMap) -> UniquePtr<State>;
-
-        fn input_rule(
-            context: &mut Context,
-            state: &mut UniquePtr<State>,
-            tokens: &mut Vec<Token>,
-        ) -> Result<bool>;
+        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
 
         fn run(
             context: &mut Context,
             state: &mut UniquePtr<State>,
-            inputs: Vec<Input>,
+            input: Input,
         ) -> Result<()>;
     }
 }

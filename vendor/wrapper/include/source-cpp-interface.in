@@ -3,8 +3,8 @@
 
         type State;
 
-        fn initialize(configuration: &ConfigurationMap) -> UniquePtr<State>;
+        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
 
-        fn run(context: &mut Context, state: &mut UniquePtr<State>) -> Result<Vec<Output>>;
+        fn run(context: &mut Context, state: &mut UniquePtr<State>) -> Result<Vec<u8>>;
     }
 }
