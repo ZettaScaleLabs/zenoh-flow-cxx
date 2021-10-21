@@ -6,7 +6,7 @@ pub struct StateWrapper {
     pub state: UniquePtr<ffi::State>,
 }
 
-impl State for StateWrapper {
+impl ZFState for StateWrapper {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use cxx::UniquePtr;
 use std::{fmt::Debug, sync::Arc};
 use zenoh_flow::{
-    downcast_mut, runtime::message::DataMessage, Context, Node, SerDeData, Sink, State, ZFError,
+    downcast_mut, runtime::message::DataMessage, Context, Node, Sink, ZFState, ZFError,
     ZFResult,
 };
 

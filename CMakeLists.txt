@@ -18,7 +18,18 @@ project(ZenohFlowCxxComponent VERSION 0.1.0)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
+  set(CARGO_BUILD_TYPE --release)
+  set(CARGO_BUILD_TYPE_DIR release)
 endif()
+
+message("-- CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
+
+string( TOLOWER "${CMAKE_BUILD_TYPE}" cm_build_type )
+if(cm_build_type STREQUAL "debug" )
+  set(CARGO_BUILD_TYPE_DIR debug)
+endif()
+
+message("-- CARGO_BUILD_TYPE = ${CARGO_BUILD_TYPE_DIR}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -90,13 +101,13 @@ add_custom_command(
 #
 # This part is actually called from the top-level CMakeLists file. The static
 # library will be linked with the resulting component shared library.
-set(cxxwrapper_lib ${wrapper_dir}/target/release/libwrapper.a)
+set(cxxwrapper_lib ${wrapper_dir}/target/${CARGO_BUILD_TYPE_DIR}/libwrapper.a)
 
 add_custom_target(WrapperLib ALL DEPENDS ${cxxwrapper_lib})
 add_custom_command(
   OUTPUT ${cxxwrapper_lib}
   # COMMAND cargo update
-  COMMAND cargo build --release
+  COMMAND cargo build ${CARGO_BUILD_TYPE}
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor/wrapper
   DEPENDS ${cxxbridge_in}
   COMMENT "Generating Rust library:"

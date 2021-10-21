@@ -2,10 +2,7 @@ impl ffi::Input {
     fn from_data_message(
         data_message: &zenoh_flow::runtime::message::DataMessage,
     ) -> ZFResult<Self> {
-        let data = match &data_message.data {
-            SerDeData::Serialized(ser) => ser.as_ref().clone(),
-            SerDeData::Deserialized(de) => de.try_serialize()?,
-        };
+        let data = data_message.data.try_as_bytes()?.as_ref().clone();
 
         Ok(Self {
             data,
@@ -20,7 +17,7 @@ impl Node for MySink {
     fn initialize(
         &self,
         configuration: &Option<std::collections::HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> {
+    ) -> Box<dyn zenoh_flow::ZFState> {
         let cxx_configuration = match configuration {
             Some(config) => config
                 .iter()
@@ -41,7 +38,7 @@ impl Node for MySink {
         Box::new(StateWrapper { state })
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -51,7 +48,7 @@ impl Sink for MySink {
     async fn run(
         &self,
         context: &mut Context,
-        dyn_state: &mut Box<dyn State>,
+        dyn_state: &mut Box<dyn ZFState>,
         input: DataMessage,
     ) -> ZFResult<()> {
         let mut cxx_context = ffi::Context::from(context);

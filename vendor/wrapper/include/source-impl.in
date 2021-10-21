@@ -4,7 +4,7 @@ impl Node for MySource {
     fn initialize(
         &self,
         configuration: &Option<std::collections::HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> {
+    ) -> Box<dyn zenoh_flow::ZFState> {
         let cxx_configuration = match configuration {
             Some(config) => config
                 .iter()
@@ -25,7 +25,7 @@ impl Node for MySource {
         Box::new(StateWrapper { state })
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -35,8 +35,8 @@ impl Source for MySource {
     async fn run(
         &self,
         context: &mut Context,
-        dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<SerDeData> {
+        dyn_state: &mut Box<dyn zenoh_flow::ZFState>,
+    ) -> ZFResult<Data> {
         let mut cxx_context = ffi::Context::from(context);
         let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
 
@@ -46,8 +46,7 @@ impl Source for MySource {
                 ffi::run(&mut cxx_context, &mut wrapper.state).map_err(|_| ZFError::GenericError)?
             }
         };
-
-        Ok(zf_data_raw!(cxx_output))
+        Ok(Data::from_bytes(cxx_output))
     }
 }
 
