@@ -65,7 +65,7 @@ impl Node for MyOperator {
     fn initialize(
         &self,
         configuration: &Option<std::collections::HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFState> {
+    ) -> State {
         let cxx_configuration = match configuration {
             Some(config) => config
                 .iter()
@@ -83,10 +83,10 @@ impl Node for MyOperator {
                 ffi::initialize(&cxx_configuration)
             }
         };
-        Box::new(StateWrapper { state })
+        State::from(StateWrapper { state })
     }
 
-    fn clean(&self, _state: &mut Box<dyn zenoh_flow::ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -95,10 +95,10 @@ impl Operator for MyOperator {
     fn input_rule(
         &self,
         context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFState>,
+        dyn_state: &mut State,
         tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
-        let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
+        let wrapper = dyn_state.try_get::<StateWrapper>()?;
         let res_cxx_tokens: Result<Vec<ffi::Token>, ZFError> = tokens
             .iter_mut()
             .map(|(port_id, token)| ffi::Token::from_token(token, port_id))
@@ -118,11 +118,11 @@ impl Operator for MyOperator {
     fn run(
         &self,
         context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFState>,
+        dyn_state: &mut State,
         inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut cxx_context = ffi::Context::from(context);
-        let wrapper = downcast_mut!(StateWrapper, dyn_state).unwrap();
+        let wrapper = dyn_state.try_get::<StateWrapper>()?;
         let result_cxx_inputs: Result<Vec<ffi::Input>, ZFError> = inputs
             .iter_mut()
             .map(|(port_id, data_message)| ffi::Input::from_data_message(port_id, data_message))
@@ -149,7 +149,7 @@ impl Operator for MyOperator {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        _dyn_state: &mut Box<dyn zenoh_flow::ZFState>,
+        _dyn_state: &mut State,
         outputs: HashMap<zenoh_flow::PortId, Data>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::NodeOutput>> {
         let mut results = HashMap::with_capacity(outputs.len());
