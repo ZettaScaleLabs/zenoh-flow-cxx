@@ -16,16 +16,24 @@ pub struct MySink;
 impl Node for MySink {
     fn initialize(
         &self,
-        configuration: &Option<std::collections::HashMap<String, String>>,
-    ) -> State {
+        configuration: &Option<Configuration>,
+    ) -> ZFResult<State> {
         let cxx_configuration = match configuration {
-            Some(config) => config
-                .iter()
-                .map(|(key, value)| ffi::Configuration {
-                    key: key.clone(),
-                    value: value.clone(),
-                })
-                .collect(),
+            Some(config) => match config.as_object() {
+                Some(config) => {
+                    let mut conf = vec![];
+                    for (key, value) in config {
+                        let entry =  ffi::Configuration {
+                            key: key.clone(),
+                            value: value.as_str().ok_or_else(|| ZFError::GenericError)?.to_string(),
+                        };
+                        conf.push(entry);
+                    }
+                    conf
+                }
+                None => vec![],
+            }
+
             None => vec![],
         };
 
@@ -35,7 +43,7 @@ impl Node for MySink {
                 ffi::initialize(&cxx_configuration)
             }
         };
-        State::from(StateWrapper { state })
+        Ok(State::from(StateWrapper { state }))
     }
 
     fn finalize(&self, _state: &mut State) -> ZFResult<()> {

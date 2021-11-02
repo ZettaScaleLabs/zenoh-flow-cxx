@@ -15,7 +15,7 @@
 use cxx::UniquePtr;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use zenoh_flow::{Node, NodeOutput, Operator, Data, State, Token, TokenAction,
-    ZFError, ZFResult, ZFState
+    ZFError, ZFResult, ZFState, Configuration
 };
 
 extern crate zenoh_flow;

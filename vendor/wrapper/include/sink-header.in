@@ -17,7 +17,7 @@ use cxx::UniquePtr;
 use std::{fmt::Debug, sync::Arc};
 use zenoh_flow::{
     runtime::message::DataMessage, Context, Node, Sink, State, ZFError,
-    ZFResult, ZFState
+    ZFResult, ZFState, Configuration
 };
 
 extern crate zenoh_flow;
