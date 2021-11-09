@@ -1,0 +1,18 @@
+[package]
+name = "operator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", branch = "master" }
+cxx = "1.0"
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false

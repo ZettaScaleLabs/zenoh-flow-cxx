@@ -36,5 +36,8 @@ input_rule(Context &context, std::unique_ptr<State> &state,
 rust::Vec<Output>
 run(Context &context, std::unique_ptr<State> &state, rust::Vec<Input> inputs);
 
+rust::Vec<Output>
+output_rule(Context &context, std::unique_ptr<State> &state, rust::Vec<Output> run_outputs, DeadlineMiss deadlinemiss);
+
 } // namespace flow
 } // namespace zenoh

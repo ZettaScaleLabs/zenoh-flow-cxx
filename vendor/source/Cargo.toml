@@ -1,0 +1,21 @@
+[package]
+name = "source"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", branch = "master" }
+cxx = "1.0"
+async-trait = "0.1.50"
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false

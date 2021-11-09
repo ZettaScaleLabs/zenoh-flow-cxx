@@ -16,48 +16,50 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <operator.hpp>
 #include <string>
 #include <vector>
-#include <operator.hpp>
 
 namespace zenoh {
 namespace flow {
 
-State::State() {
-  counter = 0;
-}
+State::State() { counter = 0; }
 
-void State::increaseCounter(void) {
-  counter += 1;
-}
+void State::increaseCounter(void) { counter += 1; }
 
-std::uint8_t State::getCounter(void) {
-  return counter;
-}
+std::uint8_t State::getCounter(void) { return counter; }
 
 std::unique_ptr<State>
 initialize(const rust::Vec<Configuration> &configuration) {
   return std::make_unique<State>();
 }
 
-bool
-input_rule(Context &context, std::unique_ptr<State> &state, rust::Vec<Token> &tokens) {
+bool input_rule(Context &context, std::unique_ptr<State> &state,
+                rust::Vec<Token> &tokens) {
   for (auto token : tokens) {
     if (token.status != TokenStatus::Ready) {
-        return false;
-      }
+      return false;
+    }
   }
 
   return true;
 }
 
-rust::Vec<Output>
-run(Context &context, std::unique_ptr<State> &state, rust::Vec<Input> inputs) {
+rust::Vec<Output> run(Context &context, std::unique_ptr<State> &state,
+                      rust::Vec<Input> inputs) {
   state->increaseCounter();
-  rust::Vec<std::uint8_t> counter = { state->getCounter() };
-  Output count { "count", counter };
-  rust::Vec<Output> results { count };
+  rust::Vec<std::uint8_t> counter = {state->getCounter()};
+  Output count{"count", counter};
+  rust::Vec<Output> results{count};
   return results;
 }
+
+rust::Vec<Output> output_rule(Context &context, std::unique_ptr<State> &state,
+                              rust::Vec<Output> run_outputs,
+                              DeadlineMiss deadlinemiss) {
+  // DeadlineMiss should be handled here.
+  return run_outputs;
+}
+
 } // namespace flow
 } // namespace zenoh

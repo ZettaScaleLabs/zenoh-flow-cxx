@@ -14,7 +14,12 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(ZenohFlowCxxComponent VERSION 0.1.0)
+project(ZenohFlowCxxNode VERSION 0.1.0)
+
+# TODO: Detect that we are running on a Apple M1 and set this variable to this value.
+# https://gitlab.kitware.com/cmake/cmake/-/issues/20989
+set(CMAKE_OSX_ARCHITECTURES arm64)
+message("-- CMAKE_OSX_ARCHITECTURES = ${CMAKE_OSX_ARCHITECTURES}")
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -49,47 +54,45 @@ set(CMAKE_SCRIPTS_DIR ${CMAKE_SOURCE_DIR}/cmake)
 #
 # Setup: We need to know what we are generating.
 #
-option(SOURCE    "Set the Component to SOURCE")
-option(OPERATOR  "Set the Component to OPERATOR")
-option(SINK      "Set the Component to SINK")
+option(SOURCE    "Set the Node to SOURCE")
+option(OPERATOR  "Set the Node to OPERATOR")
+option(SINK      "Set the Node to SINK")
 
 
 if (NOT ${SOURCE} AND NOT ${OPERATOR} AND NOT ${SINK})
-  message(FATAL_ERROR "The type of Component to generate must be specified (i.e., -DOPERATOR=ON, -DSINK=ON, -DSOURCE=ON).")
+  message(FATAL_ERROR "The type of Node to generate must be specified (i.e., -DOPERATOR=ON, -DSINK=ON, -DSOURCE=ON).")
 elseif ((${SOURCE} AND (${OPERATOR} OR ${SINK})) OR (${OPERATOR} AND (${SOURCE} OR ${SINK})))
-  message(FATAL_ERROR "Only one type of Component can be generated.")
+  message(FATAL_ERROR "Only one type of Node can be generated.")
 endif()
 
 if (${SOURCE})
-  set(component source)
+  set(node source)
 elseif (${SINK})
-  set(component sink)
+  set(node sink)
 elseif (${OPERATOR})
-  set(component operator)
+  set(node operator)
 endif()
 
-set(LIB_NAME "cxx_${component}" CACHE STRING "The name of the generated library.")
+set(LIB_NAME "cxx_${node}" CACHE STRING "The name of the generated library.")
 
 #
 # First step: generating the bridge files.
 #
 # The generated lib.rs file will be parsed by `cxxbridge` to generate the
-# bindings between Zenoh Flow and the C++ components.
+# bindings between Zenoh Flow and the C++ nodes.
 #
-set(wrapper_dir  ${CMAKE_SOURCE_DIR}/vendor/wrapper)
-set(include_dir  ${wrapper_dir}/include)
+set(node_dir  ${CMAKE_SOURCE_DIR}/vendor/${node})
 
-set(cxxbridge_in         ${wrapper_dir}/src/lib.rs)
+set(cxxbridge_in         ${node_dir}/src/lib.rs)
 set(cxxbridge_source_out ${CMAKE_SOURCE_DIR}/src/wrapper.cpp)
 set(cxxbridge_header_out ${CMAKE_SOURCE_DIR}/include/wrapper.hpp)
 
 add_custom_target(CxxBridge ALL
-  DEPENDS ${cxxbridge_in} ${cxxbridge_header_out} ${cxxbridge_source_out}
+  DEPENDS ${cxxbridge_header_out} ${cxxbridge_source_out}
   )
 
 add_custom_command(
-  OUTPUT ${cxxbridge_in} ${cxxbridge_header_out} ${cxxbridge_source_out}
-  COMMAND ${CMAKE_COMMAND} -Dcomponent=${component} -Dinclude_dir=${include_dir} -Dcxxbridge_in=${cxxbridge_in} -P ${CMAKE_SCRIPTS_DIR}/GenerateLibRs.cmake
+  OUTPUT ${cxxbridge_header_out} ${cxxbridge_source_out}
   COMMAND ${CXXBRIDGE} ${cxxbridge_in} --output ${cxxbridge_source_out}
   COMMAND ${CXXBRIDGE} ${cxxbridge_in} --header --output ${cxxbridge_header_out}
   COMMAND ${CMAKE_COMMAND} -DHEADER=${cxxbridge_header_out} -P ${CMAKE_SCRIPTS_DIR}/Patcher.cmake
@@ -100,33 +103,33 @@ add_custom_command(
 # Second step: generating the static library containing the Rust "glue".
 #
 # This part is actually called from the top-level CMakeLists file. The static
-# library will be linked with the resulting component shared library.
-set(cxxwrapper_lib ${wrapper_dir}/target/${CARGO_BUILD_TYPE_DIR}/libwrapper.a)
+# library will be linked with the resulting node shared library.
+set(rust_lib ${node_dir}/target/${CARGO_BUILD_TYPE_DIR}/lib${node}.a)
 
-add_custom_target(WrapperLib ALL DEPENDS ${cxxwrapper_lib})
+add_custom_target(RustLib ALL DEPENDS ${rust_lib})
 add_custom_command(
-  OUTPUT ${cxxwrapper_lib}
+  OUTPUT ${rust_lib}
   # COMMAND cargo update
   COMMAND cargo build ${CARGO_BUILD_TYPE}
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vendor/wrapper
+  WORKING_DIRECTORY ${node_dir}
   DEPENDS ${cxxbridge_in}
   COMMENT "Generating Rust library:"
   )
 
 add_library(CxxWrapper STATIC IMPORTED GLOBAL)
-add_dependencies(CxxWrapper WrapperLib)
+add_dependencies(CxxWrapper RustLib)
 set_target_properties(CxxWrapper
   PROPERTIES
-  IMPORTED_LOCATION ${cxxwrapper_lib}
+  IMPORTED_LOCATION ${rust_lib}
   )
 
 #
-# Third step: generating the final component shared library.
+# Third step: generating the final node shared library.
 #
-set(component_src src/${component}.cpp)
+set(node_src src/${node}.cpp)
 
 add_library(${LIB_NAME} SHARED
-  ${component_src}
+  ${node_src}
   ${cxxbridge_source_out})
 add_dependencies(${LIB_NAME} CxxBridge)
 target_include_directories(${LIB_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
