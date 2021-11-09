@@ -18,8 +18,8 @@ project(ZenohFlowCxxNode VERSION 0.1.0)
 
 # TODO: Detect that we are running on a Apple M1 and set this variable to this value.
 # https://gitlab.kitware.com/cmake/cmake/-/issues/20989
-set(CMAKE_OSX_ARCHITECTURES arm64)
-message("-- CMAKE_OSX_ARCHITECTURES = ${CMAKE_OSX_ARCHITECTURES}")
+# set(CMAKE_OSX_ARCHITECTURES arm64)
+# message("-- CMAKE_OSX_ARCHITECTURES = ${CMAKE_OSX_ARCHITECTURES}")
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
