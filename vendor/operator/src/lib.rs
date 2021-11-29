@@ -15,8 +15,8 @@
 use cxx::UniquePtr;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use zenoh_flow::{
-    Configuration, Data, DeadlineMiss, Node, NodeOutput, Operator, PortId, State, Token,
-    TokenAction, ZFError, ZFResult, ZFState,
+    runtime::deadline::E2EDeadlineMiss, Configuration, Data, LocalDeadlineMiss, Node, NodeOutput,
+    Operator, PortId, State, Token, TokenAction, ZFError, ZFResult, ZFState,
 };
 
 extern crate zenoh_flow;
@@ -36,6 +36,7 @@ pub mod ffi {
         pub port_id: String,
         pub data: Vec<u8>,
         pub timestamp: u64,
+        pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
     }
 
     pub struct Output {
@@ -55,10 +56,17 @@ pub mod ffi {
         Wait,
     }
 
-    pub struct DeadlineMiss {
+    pub struct LocalDeadlineMiss {
         pub elapsed_ms: u64,
         pub deadline_duration_ms: u64,
         pub is_set: bool,
+    }
+
+    pub struct E2EDeadlineMiss {
+        pub from: FromDescriptor,
+        pub to: ToDescriptor,
+        pub start: u64,
+        pub end: u64,
     }
 
     pub struct Token {
@@ -67,6 +75,16 @@ pub mod ffi {
         pub port_id: String,
         pub data: Vec<u8>,
         pub timestamp: u64,
+    }
+
+    pub struct FromDescriptor {
+        pub node: String,
+        pub output: String,
+    }
+
+    pub struct ToDescriptor {
+        pub node: String,
+        pub input: String,
     }
 
     unsafe extern "C++" {
@@ -92,7 +110,7 @@ pub mod ffi {
             context: &mut Context,
             state: &mut UniquePtr<State>,
             outputs: Vec<Output>,
-            deadline_miss: DeadlineMiss,
+            deadline_miss: LocalDeadlineMiss,
         ) -> Result<Vec<Output>>;
     }
 }
@@ -169,13 +187,23 @@ impl From<TokenAction> for ffi::TokenAction {
 }
 
 impl ffi::Input {
-    fn try_new(port_id: &str, data_message: &zenoh_flow::DataMessage) -> ZFResult<Self> {
-        let data = data_message.data.try_as_bytes()?.as_ref().clone();
+    fn try_new(port_id: &str, data_message: &mut zenoh_flow::DataMessage) -> ZFResult<Self> {
+        let data = data_message
+            .get_inner_data()
+            .try_as_bytes()?
+            .as_ref()
+            .clone();
+        let e2d_deadline_miss: Vec<ffi::E2EDeadlineMiss> = data_message
+            .get_missed_end_to_end_deadlines()
+            .iter()
+            .map(|e2e_deadline| e2e_deadline.into())
+            .collect();
 
         Ok(Self {
             port_id: port_id.to_string(),
             data,
-            timestamp: data_message.timestamp.get_time().as_u64(),
+            timestamp: data_message.get_timestamp().get_time().as_u64(),
+            e2d_deadline_miss,
         })
     }
 }
@@ -189,8 +217,8 @@ impl ffi::Output {
     }
 }
 
-impl From<Option<DeadlineMiss>> for ffi::DeadlineMiss {
-    fn from(deadline_miss: Option<DeadlineMiss>) -> Self {
+impl From<Option<LocalDeadlineMiss>> for ffi::LocalDeadlineMiss {
+    fn from(deadline_miss: Option<LocalDeadlineMiss>) -> Self {
         match deadline_miss {
             Some(deadline_miss) => Self {
                 elapsed_ms: (deadline_miss.elapsed.as_secs_f64() * 1_000_000 as f64).floor() as u64,
@@ -203,6 +231,26 @@ impl From<Option<DeadlineMiss>> for ffi::DeadlineMiss {
                 deadline_duration_ms: 0,
                 is_set: false,
             },
+        }
+    }
+}
+
+impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
+    fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
+        let to = ffi::ToDescriptor {
+            node: e2d_deadline_miss.to.node.as_ref().clone().into(),
+            input: e2d_deadline_miss.to.input.as_ref().clone().into(),
+        };
+        let from = ffi::FromDescriptor {
+            node: e2d_deadline_miss.from.node.as_ref().clone().into(),
+            output: e2d_deadline_miss.from.output.as_ref().clone().into(),
+        };
+
+        Self {
+            from,
+            to,
+            start: e2d_deadline_miss.start.get_time().as_u64(),
+            end: e2d_deadline_miss.end.get_time().as_u64(),
         }
     }
 }
@@ -320,7 +368,7 @@ impl Operator for CxxOperator {
         context: &mut zenoh_flow::Context,
         dyn_state: &mut State,
         mut outputs: HashMap<zenoh_flow::PortId, Data>,
-        deadline_miss: Option<DeadlineMiss>,
+        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::NodeOutput>> {
         let mut cxx_context = ffi::Context::from(context);
         let wrapper = dyn_state.try_get::<StateWrapper>()?;
@@ -329,7 +377,7 @@ impl Operator for CxxOperator {
             .map(|(port_id, data)| ffi::Output::try_new(port_id, data))
             .collect();
         let run_outputs = res_run_outputs?;
-        let deadline_miss = ffi::DeadlineMiss::from(deadline_miss);
+        let deadline_miss = ffi::LocalDeadlineMiss::from(deadline_miss);
         let cxx_outputs = {
             #[allow(unused_unsafe)]
             unsafe {

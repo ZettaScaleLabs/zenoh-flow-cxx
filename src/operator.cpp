@@ -56,7 +56,7 @@ rust::Vec<Output> run(Context &context, std::unique_ptr<State> &state,
 
 rust::Vec<Output> output_rule(Context &context, std::unique_ptr<State> &state,
                               rust::Vec<Output> run_outputs,
-                              DeadlineMiss deadlinemiss) {
+                              LocalDeadlineMiss deadlinemiss) {
   // DeadlineMiss should be handled here.
   return run_outputs;
 }

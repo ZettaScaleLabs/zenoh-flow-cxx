@@ -17,7 +17,7 @@ use cxx::UniquePtr;
 use std::{fmt::Debug, sync::Arc};
 use zenoh_flow::{
     runtime::message::DataMessage, Configuration, Context, Node, Sink, State, ZFError, ZFResult,
-    ZFState,
+    ZFState, runtime::deadline::E2EDeadlineMiss
 };
 
 extern crate zenoh_flow;
@@ -36,6 +36,24 @@ pub mod ffi {
     pub struct Input {
         pub data: Vec<u8>,
         pub timestamp: u64,
+        pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
+    }
+
+    pub struct E2EDeadlineMiss {
+        pub from: FromDescriptor,
+        pub to: ToDescriptor,
+        pub start: u64,
+        pub end: u64,
+    }
+
+    pub struct FromDescriptor {
+        pub node: String,
+        pub output: String,
+    }
+
+    pub struct ToDescriptor {
+        pub node: String,
+        pub input: String,
     }
 
     unsafe extern "C++" {
@@ -86,14 +104,40 @@ impl From<&mut zenoh_flow::Context> for ffi::Context {
 
 impl ffi::Input {
     fn from_data_message(
-        data_message: &zenoh_flow::runtime::message::DataMessage,
+        data_message: &mut zenoh_flow::runtime::message::DataMessage,
     ) -> ZFResult<Self> {
-        let data = data_message.data.try_as_bytes()?.as_ref().clone();
+        let data = data_message.get_inner_data().try_as_bytes()?.as_ref().clone();
+        let e2d_deadline_miss: Vec<ffi::E2EDeadlineMiss> = data_message
+        .get_missed_end_to_end_deadlines()
+        .iter()
+        .map(|e2e_deadline| e2e_deadline.into())
+        .collect();
 
         Ok(Self {
             data,
-            timestamp: data_message.timestamp.get_time().as_u64(),
+            timestamp: data_message.get_timestamp().get_time().as_u64(),
+            e2d_deadline_miss,
         })
+    }
+}
+
+impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
+    fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
+        let to = ffi::ToDescriptor {
+            node: e2d_deadline_miss.to.node.as_ref().clone().into(),
+            input: e2d_deadline_miss.to.input.as_ref().clone().into(),
+        };
+        let from = ffi::FromDescriptor {
+            node: e2d_deadline_miss.from.node.as_ref().clone().into(),
+            output: e2d_deadline_miss.from.output.as_ref().clone().into(),
+        };
+
+        Self {
+            from,
+            to,
+            start: e2d_deadline_miss.start.get_time().as_u64(),
+            end: e2d_deadline_miss.end.get_time().as_u64(),
+        }
     }
 }
 
@@ -149,11 +193,11 @@ impl Sink for CxxSink {
         &self,
         context: &mut Context,
         dyn_state: &mut State,
-        input: DataMessage,
+        mut input: DataMessage,
     ) -> ZFResult<()> {
         let mut cxx_context = ffi::Context::from(context);
         let wrapper = dyn_state.try_get::<StateWrapper>()?;
-        let cxx_input = ffi::Input::from_data_message(&input)?;
+        let cxx_input = ffi::Input::from_data_message(&mut input)?;
 
         {
             #[allow(unused_unsafe)]
