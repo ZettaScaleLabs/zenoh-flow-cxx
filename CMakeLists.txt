@@ -109,7 +109,7 @@ set(rust_lib ${node_dir}/target/${CARGO_BUILD_TYPE_DIR}/lib${node}.a)
 add_custom_target(RustLib ALL DEPENDS ${rust_lib})
 add_custom_command(
   OUTPUT ${rust_lib}
-  # COMMAND cargo update
+  COMMAND cargo update
   COMMAND cargo build ${CARGO_BUILD_TYPE}
   WORKING_DIRECTORY ${node_dir}
   DEPENDS ${cxxbridge_in}
