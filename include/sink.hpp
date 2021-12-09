@@ -23,7 +23,8 @@ public:
   State();
 };
 
-std::unique_ptr<State> initialize(const rust::Vec<Configuration> &configuration);
+// Configuration is a JSON string, use any C++ JSON library to parse it.
+std::unique_ptr<State> initialize(rust::Str json_configuration);
 
 void
 run(Context &context, std::unique_ptr<State> &state, Input input);

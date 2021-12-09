@@ -31,8 +31,9 @@ void State::increaseCounter(void) { counter += 1; }
 
 std::uint8_t State::getCounter(void) { return counter; }
 
-std::unique_ptr<State>
-initialize(const rust::Vec<Configuration> &configuration) {
+std::unique_ptr<State> initialize(rust::Str json_configuration) {
+  std::cout << "Configuration: " << std::endl;
+  std::cout << json_configuration.data() << '\0' << std::endl;
   return std::make_unique<State>();
 }
 

@@ -9,6 +9,7 @@ edition = "2018"
 zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", branch = "master" }
 cxx = "1.0"
 async-trait = "0.1.50"
+serde_json = "1.0"
 
 [lib]
 crate-type = ["staticlib"]

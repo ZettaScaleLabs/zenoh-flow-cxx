@@ -27,10 +27,10 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    pub struct Configuration {
-        pub key: String,
-        pub value: String,
-    }
+    // pub struct Configuration {
+    //     pub key: String,
+    //     pub value: String,
+    // }
 
     #[derive(Debug)]
     pub struct Input {
@@ -101,7 +101,7 @@ pub mod ffi {
 
         type State;
 
-        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
+        fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
         fn input_rule(
             context: &mut Context,
@@ -277,23 +277,25 @@ impl Node for CxxOperator {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
                 Some(config) => {
-                    let mut conf = vec![];
-                    for (key, value) in config {
-                        let entry = ffi::Configuration {
-                            key: key.clone(),
-                            value: value
-                                .as_str()
-                                .ok_or_else(|| ZFError::GenericError)?
-                                .to_string(),
-                        };
-                        conf.push(entry);
-                    }
-                    conf
+                    let config = serde_json::to_string(config)?;
+                    config
+                    // let mut conf = vec![];
+                    // for (key, value) in config {
+                    //     let entry = ffi::Configuration {
+                    //         key: key.clone(),
+                    //         value: value
+                    //             .as_str()
+                    //             .ok_or_else(|| ZFError::GenericError)?
+                    //             .to_string(),
+                    //     };
+                    //     conf.push(entry);
+                    // }
+                    // conf
                 }
-                None => vec![],
+                None => String::from("{}"),
             },
 
-            None => vec![],
+            None => String::from("{}"),
         };
 
         let state = {
