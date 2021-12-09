@@ -40,18 +40,18 @@ pub mod ffi {
     }
 
     pub struct E2EDeadlineMiss {
-        pub from: FromDescriptor,
-        pub to: ToDescriptor,
+        pub from: OutputDescriptor,
+        pub to: InputDescriptor,
         pub start: u64,
         pub end: u64,
     }
 
-    pub struct FromDescriptor {
+    pub struct OutputDescriptor {
         pub node: String,
         pub output: String,
     }
 
-    pub struct ToDescriptor {
+    pub struct InputDescriptor {
         pub node: String,
         pub input: String,
     }
@@ -123,11 +123,11 @@ impl ffi::Input {
 
 impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
     fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
-        let to = ffi::ToDescriptor {
+        let to = ffi::InputDescriptor {
             node: e2d_deadline_miss.to.node.as_ref().clone().into(),
             input: e2d_deadline_miss.to.input.as_ref().clone().into(),
         };
-        let from = ffi::FromDescriptor {
+        let from = ffi::OutputDescriptor {
             node: e2d_deadline_miss.from.node.as_ref().clone().into(),
             output: e2d_deadline_miss.from.output.as_ref().clone().into(),
         };
@@ -200,11 +200,16 @@ impl Sink for CxxSink {
         let cxx_input = ffi::Input::from_data_message(&mut input)?;
 
         {
-            #[allow(unused_unsafe)]
-            unsafe {
-                Ok(ffi::run(&mut cxx_context, &mut wrapper.state, cxx_input)
-                    .map_err(|_| ZFError::GenericError)?)
-            }
+            let cxx_output_res : ZFResult<()> = async {
+                #[allow(unused_unsafe)]
+                unsafe {
+                    ffi::run(&mut cxx_context, &mut wrapper.state, cxx_input)
+                    .map_err(|_| ZFError::GenericError)
+                }
+            }.await;
+            let cxx_output = cxx_output_res?;
+            Ok(cxx_output)
+
         }
     }
 }

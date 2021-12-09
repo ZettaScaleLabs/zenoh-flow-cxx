@@ -32,6 +32,7 @@ pub mod ffi {
         pub value: String,
     }
 
+    #[derive(Debug)]
     pub struct Input {
         pub port_id: String,
         pub data: Vec<u8>,
@@ -39,16 +40,19 @@ pub mod ffi {
         pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
     }
 
+    #[derive(Debug)]
     pub struct Output {
         pub port_id: String,
         pub data: Vec<u8>,
     }
 
+    #[derive(Debug)]
     pub enum TokenStatus {
         Pending,
         Ready,
     }
 
+    #[derive(Debug)]
     pub enum TokenAction {
         Consume,
         Drop,
@@ -56,19 +60,22 @@ pub mod ffi {
         Wait,
     }
 
+    #[derive(Debug)]
     pub struct LocalDeadlineMiss {
         pub elapsed_ms: u64,
         pub deadline_duration_ms: u64,
         pub is_set: bool,
     }
 
+    #[derive(Debug)]
     pub struct E2EDeadlineMiss {
-        pub from: FromDescriptor,
-        pub to: ToDescriptor,
+        pub from: OutputDescriptor,
+        pub to: InputDescriptor,
         pub start: u64,
         pub end: u64,
     }
 
+    #[derive(Debug)]
     pub struct Token {
         pub status: TokenStatus,
         pub action: TokenAction,
@@ -77,12 +84,14 @@ pub mod ffi {
         pub timestamp: u64,
     }
 
-    pub struct FromDescriptor {
+    #[derive(Debug)]
+    pub struct OutputDescriptor {
         pub node: String,
         pub output: String,
     }
 
-    pub struct ToDescriptor {
+    #[derive(Debug)]
+    pub struct InputDescriptor {
         pub node: String,
         pub input: String,
     }
@@ -237,11 +246,11 @@ impl From<Option<LocalDeadlineMiss>> for ffi::LocalDeadlineMiss {
 
 impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
     fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
-        let to = ffi::ToDescriptor {
+        let to = ffi::InputDescriptor {
             node: e2d_deadline_miss.to.node.as_ref().clone().into(),
             input: e2d_deadline_miss.to.input.as_ref().clone().into(),
         };
-        let from = ffi::FromDescriptor {
+        let from = ffi::OutputDescriptor {
             node: e2d_deadline_miss.from.node.as_ref().clone().into(),
             output: e2d_deadline_miss.from.output.as_ref().clone().into(),
         };
@@ -345,7 +354,6 @@ impl Operator for CxxOperator {
             .map(|(port_id, data_message)| ffi::Input::try_new(port_id, data_message))
             .collect();
         let cxx_inputs = result_cxx_inputs?;
-
         let cxx_outputs = {
             #[allow(unused_unsafe)]
             unsafe {

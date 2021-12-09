@@ -15,6 +15,9 @@
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <thread>
+#include <chrono>
+
 #include <source.hpp>
 
 namespace zenoh {
@@ -36,10 +39,12 @@ initialize(const rust::Vec<Configuration> &configuration)
 rust::Vec<byte_t>
 run(Context &context, std::unique_ptr<State> &state)
 {
-  std::string input;
+  //std::string input;
 
-  std::cout << "Press ENTER.";
-  std::getline(std::cin, input);
+  //std::cout << "Press ENTER.";
+  //std::getline(std::cin, input);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
 
   rust::Vec<byte_t> tick = { 1 };
   return tick;

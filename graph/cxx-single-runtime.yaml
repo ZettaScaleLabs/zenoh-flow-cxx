@@ -42,10 +42,10 @@ links:
       node: CxxSink
       input: count
 
-mapping:
-  - id: CxxSource
-    runtime: source
-  - id: CxxCounter
-    runtime: operator
-  - id: CxxSink
-    runtime: sink
+# mapping:
+#   - id: CxxSource
+#     runtime: source
+#   - id: CxxCounter
+#     runtime: operator
+#   - id: CxxSink
+#     runtime: sink
