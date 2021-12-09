@@ -12,7 +12,6 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-#include <iostream>
 #include <memory>
 #include <ostream>
 #include <thread>
@@ -40,12 +39,8 @@ std::unique_ptr<State> initialize(rust::Str json_configuration) {
 rust::Vec<byte_t>
 run(Context &context, std::unique_ptr<State> &state)
 {
-  //std::string input;
 
-  //std::cout << "Press ENTER.";
-  //std::getline(std::cin, input);
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
 
   rust::Vec<byte_t> tick = { 1 };
   return tick;

@@ -3,6 +3,18 @@ flow: CxxCounter
 operators:
   - id: CxxCounter
     uri: file://./libcxx_operator.so
+    configuration:
+      map1:
+        foo: value
+        bar: value
+        baz: value
+      string1: some_value
+      empty:
+      list1:
+        - this
+        - is
+        - a
+        - list
     inputs:
       - id: tick
         type: unsigned char

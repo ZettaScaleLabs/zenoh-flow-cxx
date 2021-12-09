@@ -50,7 +50,6 @@ bool input_rule(Context &context, std::unique_ptr<State> &state,
 
 rust::Vec<Output> run(Context &context, std::unique_ptr<State> &state,
                       rust::Vec<Input> inputs) {
-  std::cout << "Hi!" << std::endl << std::flush;
   state->increaseCounter();
   rust::Vec<std::uint8_t> counter = {state->getCounter()};
   Output count{"count", counter};

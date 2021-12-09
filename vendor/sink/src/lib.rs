@@ -28,11 +28,6 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    // pub struct Configuration {
-    //     pub key: String,
-    //     pub value: String,
-    // }
-
     #[derive(Debug)]
     pub struct Input {
         pub data: Vec<u8>,
@@ -132,12 +127,12 @@ impl ffi::Input {
 impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
     fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
         let to = ffi::InputDescriptor {
-            node: e2d_deadline_miss.to.node.as_ref().clone().into(),
-            input: e2d_deadline_miss.to.input.as_ref().clone().into(),
+            node: (*e2d_deadline_miss.to.node.as_ref()).into(),
+            input: (*e2d_deadline_miss.to.input.as_ref()).into(),
         };
         let from = ffi::OutputDescriptor {
-            node: e2d_deadline_miss.from.node.as_ref().clone().into(),
-            output: e2d_deadline_miss.from.output.as_ref().clone().into(),
+            node: (*e2d_deadline_miss.from.node.as_ref()).into(),
+            output: (*e2d_deadline_miss.from.output.as_ref()).into(),
         };
 
         Self {
@@ -161,22 +156,7 @@ impl Node for CxxSink {
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State> {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
-                Some(config) => {
-                    let config = serde_json::to_string(config)?;
-                    config
-                    // let mut conf = vec![];
-                    // for (key, value) in config {
-                    //     let entry = ffi::Configuration {
-                    //         key: key.clone(),
-                    //         value: value
-                    //             .as_str()
-                    //             .ok_or_else(|| ZFError::GenericError)?
-                    //             .to_string(),
-                    //     };
-                    //     conf.push(entry);
-                    // }
-                    // conf
-                }
+                Some(config) => serde_json::to_string(config)?,
                 None => String::from("{}"),
             },
 

@@ -27,6 +27,7 @@ public:
   std::uint8_t getCounter ();
 };
 
+// Configuration is a JSON string, use any C++ JSON library to parse it.
 std::unique_ptr<State> initialize(rust::Str json_configuration);
 
 bool

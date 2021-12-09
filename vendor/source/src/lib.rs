@@ -25,11 +25,6 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    // pub struct Configuration {
-    //     pub key: String,
-    //     pub value: String,
-    // }
-
     unsafe extern "C++" {
         include!("source.hpp");
 
@@ -88,22 +83,7 @@ impl Node for CxxSource {
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State> {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
-                Some(config) => {
-                    let config = serde_json::to_string(config)?;
-                    config
-                    // let mut conf = vec![];
-                    // for (key, value) in config {
-                    //     let entry = ffi::Configuration {
-                    //         key: key.clone(),
-                    //         value: value
-                    //             .as_str()
-                    //             .ok_or_else(|| ZFError::GenericError)?
-                    //             .to_string(),
-                    //     };
-                    //     conf.push(entry);
-                    // }
-                    // conf
-                }
+                Some(config) => serde_json::to_string(config)?,
                 None => String::from("{}"),
             },
 

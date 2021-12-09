@@ -27,11 +27,6 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    // pub struct Configuration {
-    //     pub key: String,
-    //     pub value: String,
-    // }
-
     #[derive(Debug)]
     pub struct Input {
         pub port_id: String,
@@ -230,9 +225,9 @@ impl From<Option<LocalDeadlineMiss>> for ffi::LocalDeadlineMiss {
     fn from(deadline_miss: Option<LocalDeadlineMiss>) -> Self {
         match deadline_miss {
             Some(deadline_miss) => Self {
-                elapsed_ms: (deadline_miss.elapsed.as_secs_f64() * 1_000_000 as f64).floor() as u64,
-                deadline_duration_ms: (deadline_miss.deadline.as_secs_f64() * 1_000_000 as f64)
-                    .floor() as u64,
+                elapsed_ms: (deadline_miss.elapsed.as_secs_f64() * 1_000_000.0).floor() as u64,
+                deadline_duration_ms: (deadline_miss.deadline.as_secs_f64() * 1_000_000.0).floor()
+                    as u64,
                 is_set: true,
             },
             None => Self {
@@ -247,12 +242,12 @@ impl From<Option<LocalDeadlineMiss>> for ffi::LocalDeadlineMiss {
 impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
     fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
         let to = ffi::InputDescriptor {
-            node: e2d_deadline_miss.to.node.as_ref().clone().into(),
-            input: e2d_deadline_miss.to.input.as_ref().clone().into(),
+            node: (*e2d_deadline_miss.to.node.as_ref()).into(),
+            input: (*e2d_deadline_miss.to.input.as_ref()).into(),
         };
         let from = ffi::OutputDescriptor {
-            node: e2d_deadline_miss.from.node.as_ref().clone().into(),
-            output: e2d_deadline_miss.from.output.as_ref().clone().into(),
+            node: (*e2d_deadline_miss.from.node.as_ref()).into(),
+            output: (*e2d_deadline_miss.from.output.as_ref()).into(),
         };
 
         Self {
@@ -276,22 +271,7 @@ impl Node for CxxOperator {
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State> {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
-                Some(config) => {
-                    let config = serde_json::to_string(config)?;
-                    config
-                    // let mut conf = vec![];
-                    // for (key, value) in config {
-                    //     let entry = ffi::Configuration {
-                    //         key: key.clone(),
-                    //         value: value
-                    //             .as_str()
-                    //             .ok_or_else(|| ZFError::GenericError)?
-                    //             .to_string(),
-                    //     };
-                    //     conf.push(entry);
-                    // }
-                    // conf
-                }
+                Some(config) => serde_json::to_string(config)?,
                 None => String::from("{}"),
             },
 
