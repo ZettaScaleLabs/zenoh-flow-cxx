@@ -27,7 +27,8 @@ public:
   std::uint8_t getCounter ();
 };
 
-std::unique_ptr<State> initialize(const rust::Vec<Configuration> &configuration);
+// Configuration is a JSON string, use any C++ JSON library to parse it.
+std::unique_ptr<State> initialize(rust::Str json_configuration);
 
 bool
 input_rule(Context &context, std::unique_ptr<State> &state,

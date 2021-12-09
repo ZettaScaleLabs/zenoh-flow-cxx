@@ -16,8 +16,8 @@ use async_trait::async_trait;
 use cxx::UniquePtr;
 use std::{fmt::Debug, sync::Arc};
 use zenoh_flow::{
-    runtime::message::DataMessage, Configuration, Context, Node, Sink, State, ZFError, ZFResult,
-    ZFState, runtime::deadline::E2EDeadlineMiss
+    runtime::deadline::E2EDeadlineMiss, runtime::message::DataMessage, Configuration, Context,
+    Node, Sink, State, ZFError, ZFResult, ZFState,
 };
 
 extern crate zenoh_flow;
@@ -28,30 +28,29 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    pub struct Configuration {
-        pub key: String,
-        pub value: String,
-    }
-
+    #[derive(Debug)]
     pub struct Input {
         pub data: Vec<u8>,
         pub timestamp: u64,
         pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
     }
 
+    #[derive(Debug)]
     pub struct E2EDeadlineMiss {
-        pub from: FromDescriptor,
-        pub to: ToDescriptor,
+        pub from: OutputDescriptor,
+        pub to: InputDescriptor,
         pub start: u64,
         pub end: u64,
     }
 
-    pub struct FromDescriptor {
+    #[derive(Debug)]
+    pub struct OutputDescriptor {
         pub node: String,
         pub output: String,
     }
 
-    pub struct ToDescriptor {
+    #[derive(Debug)]
+    pub struct InputDescriptor {
         pub node: String,
         pub input: String,
     }
@@ -61,7 +60,7 @@ pub mod ffi {
 
         type State;
 
-        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
+        fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
         fn run(context: &mut Context, state: &mut UniquePtr<State>, input: Input) -> Result<()>;
     }
@@ -106,12 +105,16 @@ impl ffi::Input {
     fn from_data_message(
         data_message: &mut zenoh_flow::runtime::message::DataMessage,
     ) -> ZFResult<Self> {
-        let data = data_message.get_inner_data().try_as_bytes()?.as_ref().clone();
+        let data = data_message
+            .get_inner_data()
+            .try_as_bytes()?
+            .as_ref()
+            .clone();
         let e2d_deadline_miss: Vec<ffi::E2EDeadlineMiss> = data_message
-        .get_missed_end_to_end_deadlines()
-        .iter()
-        .map(|e2e_deadline| e2e_deadline.into())
-        .collect();
+            .get_missed_end_to_end_deadlines()
+            .iter()
+            .map(|e2e_deadline| e2e_deadline.into())
+            .collect();
 
         Ok(Self {
             data,
@@ -123,13 +126,13 @@ impl ffi::Input {
 
 impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
     fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
-        let to = ffi::ToDescriptor {
-            node: e2d_deadline_miss.to.node.as_ref().clone().into(),
-            input: e2d_deadline_miss.to.input.as_ref().clone().into(),
+        let to = ffi::InputDescriptor {
+            node: (*e2d_deadline_miss.to.node.as_ref()).into(),
+            input: (*e2d_deadline_miss.to.input.as_ref()).into(),
         };
-        let from = ffi::FromDescriptor {
-            node: e2d_deadline_miss.from.node.as_ref().clone().into(),
-            output: e2d_deadline_miss.from.output.as_ref().clone().into(),
+        let from = ffi::OutputDescriptor {
+            node: (*e2d_deadline_miss.from.node.as_ref()).into(),
+            output: (*e2d_deadline_miss.from.output.as_ref()).into(),
         };
 
         Self {
@@ -153,24 +156,11 @@ impl Node for CxxSink {
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State> {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
-                Some(config) => {
-                    let mut conf = vec![];
-                    for (key, value) in config {
-                        let entry = ffi::Configuration {
-                            key: key.clone(),
-                            value: value
-                                .as_str()
-                                .ok_or_else(|| ZFError::GenericError)?
-                                .to_string(),
-                        };
-                        conf.push(entry);
-                    }
-                    conf
-                }
-                None => vec![],
+                Some(config) => serde_json::to_string(config)?,
+                None => String::from("{}"),
             },
 
-            None => vec![],
+            None => String::from("{}"),
         };
 
         let state = {
@@ -200,11 +190,16 @@ impl Sink for CxxSink {
         let cxx_input = ffi::Input::from_data_message(&mut input)?;
 
         {
-            #[allow(unused_unsafe)]
-            unsafe {
-                Ok(ffi::run(&mut cxx_context, &mut wrapper.state, cxx_input)
-                    .map_err(|_| ZFError::GenericError)?)
+            let cxx_output_res: ZFResult<()> = async {
+                #[allow(unused_unsafe)]
+                unsafe {
+                    ffi::run(&mut cxx_context, &mut wrapper.state, cxx_input)
+                        .map_err(|_| ZFError::GenericError)
+                }
             }
+            .await;
+            let cxx_output = cxx_output_res?;
+            Ok(cxx_output)
         }
     }
 }

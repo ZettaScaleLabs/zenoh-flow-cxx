@@ -27,11 +27,7 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    pub struct Configuration {
-        pub key: String,
-        pub value: String,
-    }
-
+    #[derive(Debug)]
     pub struct Input {
         pub port_id: String,
         pub data: Vec<u8>,
@@ -39,16 +35,19 @@ pub mod ffi {
         pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
     }
 
+    #[derive(Debug)]
     pub struct Output {
         pub port_id: String,
         pub data: Vec<u8>,
     }
 
+    #[derive(Debug)]
     pub enum TokenStatus {
         Pending,
         Ready,
     }
 
+    #[derive(Debug)]
     pub enum TokenAction {
         Consume,
         Drop,
@@ -56,19 +55,22 @@ pub mod ffi {
         Wait,
     }
 
+    #[derive(Debug)]
     pub struct LocalDeadlineMiss {
         pub elapsed_ms: u64,
         pub deadline_duration_ms: u64,
         pub is_set: bool,
     }
 
+    #[derive(Debug)]
     pub struct E2EDeadlineMiss {
-        pub from: FromDescriptor,
-        pub to: ToDescriptor,
+        pub from: OutputDescriptor,
+        pub to: InputDescriptor,
         pub start: u64,
         pub end: u64,
     }
 
+    #[derive(Debug)]
     pub struct Token {
         pub status: TokenStatus,
         pub action: TokenAction,
@@ -77,12 +79,14 @@ pub mod ffi {
         pub timestamp: u64,
     }
 
-    pub struct FromDescriptor {
+    #[derive(Debug)]
+    pub struct OutputDescriptor {
         pub node: String,
         pub output: String,
     }
 
-    pub struct ToDescriptor {
+    #[derive(Debug)]
+    pub struct InputDescriptor {
         pub node: String,
         pub input: String,
     }
@@ -92,7 +96,7 @@ pub mod ffi {
 
         type State;
 
-        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
+        fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
         fn input_rule(
             context: &mut Context,
@@ -221,9 +225,9 @@ impl From<Option<LocalDeadlineMiss>> for ffi::LocalDeadlineMiss {
     fn from(deadline_miss: Option<LocalDeadlineMiss>) -> Self {
         match deadline_miss {
             Some(deadline_miss) => Self {
-                elapsed_ms: (deadline_miss.elapsed.as_secs_f64() * 1_000_000 as f64).floor() as u64,
-                deadline_duration_ms: (deadline_miss.deadline.as_secs_f64() * 1_000_000 as f64)
-                    .floor() as u64,
+                elapsed_ms: (deadline_miss.elapsed.as_secs_f64() * 1_000_000.0).floor() as u64,
+                deadline_duration_ms: (deadline_miss.deadline.as_secs_f64() * 1_000_000.0).floor()
+                    as u64,
                 is_set: true,
             },
             None => Self {
@@ -237,13 +241,13 @@ impl From<Option<LocalDeadlineMiss>> for ffi::LocalDeadlineMiss {
 
 impl From<&E2EDeadlineMiss> for ffi::E2EDeadlineMiss {
     fn from(e2d_deadline_miss: &E2EDeadlineMiss) -> Self {
-        let to = ffi::ToDescriptor {
-            node: e2d_deadline_miss.to.node.as_ref().clone().into(),
-            input: e2d_deadline_miss.to.input.as_ref().clone().into(),
+        let to = ffi::InputDescriptor {
+            node: (*e2d_deadline_miss.to.node.as_ref()).into(),
+            input: (*e2d_deadline_miss.to.input.as_ref()).into(),
         };
-        let from = ffi::FromDescriptor {
-            node: e2d_deadline_miss.from.node.as_ref().clone().into(),
-            output: e2d_deadline_miss.from.output.as_ref().clone().into(),
+        let from = ffi::OutputDescriptor {
+            node: (*e2d_deadline_miss.from.node.as_ref()).into(),
+            output: (*e2d_deadline_miss.from.output.as_ref()).into(),
         };
 
         Self {
@@ -267,24 +271,11 @@ impl Node for CxxOperator {
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State> {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
-                Some(config) => {
-                    let mut conf = vec![];
-                    for (key, value) in config {
-                        let entry = ffi::Configuration {
-                            key: key.clone(),
-                            value: value
-                                .as_str()
-                                .ok_or_else(|| ZFError::GenericError)?
-                                .to_string(),
-                        };
-                        conf.push(entry);
-                    }
-                    conf
-                }
-                None => vec![],
+                Some(config) => serde_json::to_string(config)?,
+                None => String::from("{}"),
             },
 
-            None => vec![],
+            None => String::from("{}"),
         };
 
         let state = {
@@ -345,7 +336,6 @@ impl Operator for CxxOperator {
             .map(|(port_id, data_message)| ffi::Input::try_new(port_id, data_message))
             .collect();
         let cxx_inputs = result_cxx_inputs?;
-
         let cxx_outputs = {
             #[allow(unused_unsafe)]
             unsafe {

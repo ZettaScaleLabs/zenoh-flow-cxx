@@ -25,17 +25,12 @@ pub mod ffi {
         pub mode: usize,
     }
 
-    pub struct Configuration {
-        pub key: String,
-        pub value: String,
-    }
-
     unsafe extern "C++" {
         include!("source.hpp");
 
         type State;
 
-        fn initialize(configuration: &Vec<Configuration>) -> UniquePtr<State>;
+        fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
         fn run(context: &mut Context, state: &mut UniquePtr<State>) -> Result<Vec<u8>>;
     }
@@ -88,24 +83,11 @@ impl Node for CxxSource {
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State> {
         let cxx_configuration = match configuration {
             Some(config) => match config.as_object() {
-                Some(config) => {
-                    let mut conf = vec![];
-                    for (key, value) in config {
-                        let entry = ffi::Configuration {
-                            key: key.clone(),
-                            value: value
-                                .as_str()
-                                .ok_or_else(|| ZFError::GenericError)?
-                                .to_string(),
-                        };
-                        conf.push(entry);
-                    }
-                    conf
-                }
-                None => vec![],
+                Some(config) => serde_json::to_string(config)?,
+                None => String::from("{}"),
             },
 
-            None => vec![],
+            None => String::from("{}"),
         };
 
         let state = {
@@ -128,12 +110,14 @@ impl Source for CxxSource {
         let mut cxx_context = ffi::Context::from(context);
         let wrapper = dyn_state.try_get::<StateWrapper>()?;
 
-        let cxx_output = {
+        let cxx_output_res: ZFResult<Vec<u8>> = async {
             #[allow(unused_unsafe)]
             unsafe {
-                ffi::run(&mut cxx_context, &mut wrapper.state).map_err(|_| ZFError::GenericError)?
+                ffi::run(&mut cxx_context, &mut wrapper.state).map_err(|_| ZFError::GenericError)
             }
-        };
+        }
+        .await;
+        let cxx_output = cxx_output_res?;
         Ok(Data::from_bytes(cxx_output))
     }
 }

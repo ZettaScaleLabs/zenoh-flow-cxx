@@ -20,8 +20,7 @@ namespace flow {
 
 State::State() {}
 
-std::unique_ptr<State>
-initialize(const rust::Vec<Configuration> &configuration) {
+std::unique_ptr<State> initialize(rust::Str json_configuration) {
   //
   // /!\ NOTE: `make_unique` requires "c++14"
   //

@@ -12,10 +12,15 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-#include <iostream>
 #include <memory>
 #include <ostream>
+#include <thread>
+#include <chrono>
+
 #include <source.hpp>
+
+#include <chrono>
+#include <thread>
 
 namespace zenoh {
 namespace flow {
@@ -24,9 +29,7 @@ using byte_t = unsigned char;
 
 State::State() {}
 
-std::unique_ptr<State>
-initialize(const rust::Vec<Configuration> &configuration)
-{
+std::unique_ptr<State> initialize(rust::Str json_configuration) {
   //
   // /!\ NOTE: `make_unique` requires "c++14"
   //
@@ -36,10 +39,8 @@ initialize(const rust::Vec<Configuration> &configuration)
 rust::Vec<byte_t>
 run(Context &context, std::unique_ptr<State> &state)
 {
-  std::string input;
 
-  std::cout << "Press ENTER.";
-  std::getline(std::cin, input);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
   rust::Vec<byte_t> tick = { 1 };
   return tick;
