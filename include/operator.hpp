@@ -32,7 +32,7 @@ std::unique_ptr<State> initialize(rust::Str json_configuration);
 
 bool
 input_rule(Context &context, std::unique_ptr<State> &state,
-           rust::Vec<Token> &tokens);
+           rust::Vec<InputToken> &tokens);
 
 rust::Vec<Output>
 run(Context &context, std::unique_ptr<State> &state, rust::Vec<Input> inputs);

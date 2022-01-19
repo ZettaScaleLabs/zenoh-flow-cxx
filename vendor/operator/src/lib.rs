@@ -16,7 +16,7 @@ use cxx::UniquePtr;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use zenoh_flow::{
     runtime::deadline::E2EDeadlineMiss, Configuration, Data, LocalDeadlineMiss, Node, NodeOutput,
-    Operator, PortId, State, Token, TokenAction, ZFError, ZFResult, ZFState,
+    Operator, PortId, State, InputToken, TokenAction, ZFError, ZFResult, ZFState,
 };
 
 extern crate zenoh_flow;
@@ -71,7 +71,7 @@ pub mod ffi {
     }
 
     #[derive(Debug)]
-    pub struct Token {
+    pub struct InputToken {
         pub status: TokenStatus,
         pub action: TokenAction,
         pub port_id: String,
@@ -101,7 +101,7 @@ pub mod ffi {
         fn input_rule(
             context: &mut Context,
             state: &mut UniquePtr<State>,
-            tokens: &mut Vec<Token>,
+            tokens: &mut Vec<InputToken>,
         ) -> Result<bool>;
 
         fn run(
@@ -154,10 +154,10 @@ impl From<&mut zenoh_flow::Context> for ffi::Context {
     }
 }
 
-impl ffi::Token {
-    pub fn try_new(token: Token, port_id: &str) -> ZFResult<Self> {
+impl ffi::InputToken {
+    pub fn try_new(token: InputToken, port_id: &str) -> ZFResult<Self> {
         match token {
-            Token::Pending => Ok(Self {
+            InputToken::Pending => Ok(Self {
                 status: ffi::TokenStatus::Pending,
                 action: ffi::TokenAction::Wait,
                 port_id: port_id.to_string(),
@@ -165,7 +165,7 @@ impl ffi::Token {
                 timestamp: 0,
             }),
 
-            Token::Ready(mut token) => {
+            InputToken::Ready(mut token) => {
                 let data = token.get_data_mut().try_as_bytes()?.as_ref().clone();
 
                 Ok(Self {
@@ -297,19 +297,19 @@ impl Operator for CxxOperator {
         &self,
         context: &mut zenoh_flow::Context,
         dyn_state: &mut State,
-        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
+        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::InputToken>,
     ) -> zenoh_flow::ZFResult<bool> {
         let wrapper = dyn_state.try_get::<StateWrapper>()?;
-        // let res_cxx_tokens: ZFResult<Vec<ffi::Token>> = tokens
+        // let res_cxx_tokens: ZFResult<Vec<ffi::InputToken>> = tokens
         //     .iter_mut()
-        //     .map(|(port_id, token)| ffi::Token::try_new(token, port_id))
+        //     .map(|(port_id, token)| ffi::InputToken::try_new(token, port_id))
         //     .collect();
         // let mut cxx_tokens = res_cxx_tokens?;
 
-        let mut cxx_tokens: Vec<ffi::Token> = Vec::with_capacity(tokens.len());
+        let mut cxx_tokens: Vec<ffi::InputToken> = Vec::with_capacity(tokens.len());
         for (port_id, token) in tokens.iter_mut() {
-            let old = std::mem::replace(token, Token::Pending);
-            cxx_tokens.push(ffi::Token::try_new(old, port_id)?);
+            let old = std::mem::replace(token, InputToken::Pending);
+            cxx_tokens.push(ffi::InputToken::try_new(old, port_id)?);
         }
 
         let mut cxx_context = ffi::Context::from(context);
