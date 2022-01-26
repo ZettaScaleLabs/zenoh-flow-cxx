@@ -1,10 +1,10 @@
 [package]
 name = "operator"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", branch = "master" }
+zenoh-flow = { git = "https://github.com/eclipse-zenoh/zenoh-flow.git", tag = "0.2.0"}
 cxx = "1.0"
 serde_json = "1.0"
 
