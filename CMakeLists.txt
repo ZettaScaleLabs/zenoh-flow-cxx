@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(ZenohFlowCxxNode VERSION 0.1.0)
+project(ZenohFlowCxxNode VERSION 0.2.0)
 
 # TODO: Detect that we are running on a Apple M1 and set this variable to this value.
 # https://gitlab.kitware.com/cmake/cmake/-/issues/20989
