@@ -1,0 +1,7 @@
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doc_doxygen/
+INPUT                  = @CMAKE_SOURCE_DIR@/src/ @CMAKE_SOURCE_DIR@/include/ @CMAKE_CURRENT_SOURCE_DIR@/../docs
+
+PROJECT_NAME           = "Zenoh Flow Cxx wrappers"
+PROJECT_BRIEF          = "Zenoh Flow provides a Zenoh-based dataflow programming framework for computations that span from the cloud to the device."
+FILE_PATTERNS          = *.c *.cc *.cxx *.etc *.hpp *.h
+EXTRACT_ALL            = YES

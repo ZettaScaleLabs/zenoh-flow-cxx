@@ -53,6 +53,15 @@ This will:
 
 The resulting library can then be loaded by Zenoh Flow!
 
+
+### Building with docs.
+
+When calling cmake it is possible to pass the `-DBUILD_DOC=ON` parameter, this will instruct CMake to build also the documentation.
+
+The documentation is built leveraging on `doxygen` so verify that it is installed on your machine.
+
+The documentation will then accessible in `build/doc_doxygen/html/index.html`.
+
 -----------
 # Acknowledgments
 
