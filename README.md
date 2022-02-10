@@ -54,7 +54,7 @@ This will:
 The resulting library can then be loaded by Zenoh Flow!
 
 
-### Building with docs.
+### Building the docs.
 
 When calling cmake it is possible to pass the `-DBUILD_DOC=ON` parameter, this will instruct CMake to build also the documentation.
 
