@@ -15,18 +15,30 @@
 use cxx::UniquePtr;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use zenoh_flow::{
-    runtime::deadline::E2EDeadlineMiss, Configuration, Data, LocalDeadlineMiss, Node, NodeOutput,
-    Operator, PortId, State, InputToken, TokenAction, ZFError, ZFResult, ZFState,
+    runtime::deadline::E2EDeadlineMiss, Configuration, Data, InputToken, LocalDeadlineMiss, Node,
+    NodeOutput, Operator, PortId, State, TokenAction, ZFError, ZFResult, ZFState,
 };
 
 extern crate zenoh_flow;
 
 #[cxx::bridge(namespace = "zenoh::flow")]
 pub mod ffi {
+
+    /// Context is a structure provided by Zenoh Flow to access
+    /// the execution context directly from the nodes.
+    ///
+    /// It contains the `mode` as size_t.
     pub struct Context {
         pub mode: usize,
     }
 
+    /// A Zenoh Flow Input data.
+    ///
+    /// It contains:
+    /// - `port_id` the port id from where the data was received.
+    /// - `data` as std::vector<uint8_t>.
+    /// - `timestamp` an uHLC timestamp associated with the data.
+    /// - `e2d_deadline_miss` list of `E2EDeadlineMiss`.
     #[derive(Debug)]
     pub struct Input {
         pub port_id: String,
@@ -35,18 +47,34 @@ pub mod ffi {
         pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
     }
 
+    /// A Zenoh Flow Output data.
+    ///
+    /// It contains:
+    /// - `port_id` the port where the data will be sent.
+    /// - `data` as std::vector<uint8_t>.
     #[derive(Debug)]
     pub struct Output {
         pub port_id: String,
         pub data: Vec<u8>,
     }
 
+    /// The status of a token representing the input.
+    /// It can be either containing the data or the information the data is
+    /// still pending.
     #[derive(Debug)]
     pub enum TokenStatus {
         Pending,
         Ready,
     }
 
+    /// The action that can be executed on a token.
+    /// Once the Token is created with some data inside,
+    /// different actions could be executed by the input rules.
+    ///
+    /// - Consume (default) the data will be consumed when run is triggered
+    /// - Drop the data will be dropped
+    /// - Keep the data will be kept for the current and the next
+    /// time the run is triggered, if can be set back to `Consume` by the user.
     #[derive(Debug)]
     pub enum TokenAction {
         Consume,
@@ -54,7 +82,11 @@ pub mod ffi {
         Keep,
         Wait,
     }
-
+    /// A structure containing all the information regarding a missed, local, deadline.
+    ///
+    /// - `is_set` is the deadline is set.
+    /// - `deadline_duration_ms`: the duration of the deadline.
+    /// - `elapsed_ms`: the duration of the execution.
     #[derive(Debug)]
     pub struct LocalDeadlineMiss {
         pub elapsed_ms: u64,
@@ -62,6 +94,8 @@ pub mod ffi {
         pub is_set: bool,
     }
 
+    /// A End to End Deadline.
+    /// A deadline can apply for a whole graph or for a subpart of it.
     #[derive(Debug)]
     pub struct E2EDeadlineMiss {
         pub from: OutputDescriptor,
@@ -70,6 +104,7 @@ pub mod ffi {
         pub end: u64,
     }
 
+    /// The token representing the input.
     #[derive(Debug)]
     pub struct InputToken {
         pub status: TokenStatus,
@@ -79,12 +114,29 @@ pub mod ffi {
         pub timestamp: u64,
     }
 
+    /// Describes one output
+    ///
+    /// Example:
+    ///
+    /// ```yaml
+    /// node : Counter
+    /// output : Counter
+    /// ```
+    ///
     #[derive(Debug)]
     pub struct OutputDescriptor {
         pub node: String,
         pub output: String,
     }
 
+    /// Describes one input
+    ///
+    /// Example:
+    ///
+    /// ```yaml
+    /// node : SumOperator
+    /// input : Number
+    /// ```
     #[derive(Debug)]
     pub struct InputDescriptor {
         pub node: String,
@@ -93,23 +145,53 @@ pub mod ffi {
 
     unsafe extern "C++" {
         include!("operator.hpp");
-
+        /// This type abstracts the user's state type inside Zenoh Flow.
+        ///
         type State;
 
+        /// This method is used to initialize the state of the node.
+        /// It is called by the Zenoh Flow runtime when initializing the data flow
+        /// graph.
+        /// An example of node state is files that should be opened, connection
+        /// to devices or internal configuration.
         fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
+        /// This method is called when data is received on one or more inputs.
+        /// The result of this method is use as discriminant to trigger the
+        /// operator's run function.
+        /// The operator can access to its context and its state during execution.
+        ///
+        /// The received data is provided as [`InputToken`](`InputToken`) that
+        /// represent the state of the associated port.
+        /// Based on the tokens and on the data users can decide if trigger
+        /// the run or not.
         fn input_rule(
             context: &mut Context,
             state: &mut UniquePtr<State>,
             tokens: &mut Vec<InputToken>,
         ) -> Result<bool>;
 
+        /// This method is the actual one processing the data.
+        /// It is triggered based on the result of the `input_rule`.
+        /// As operators are computing over data,
+        /// *I/O should not be done in the run*.
+        ///
+        /// The operator can access to its context and its state during execution.
+        /// The result of a computation can also not provide any output.
+        /// When it does provide output the `PortId` used should match the one
+        /// defined in the descriptor for the operator. Any not matching `PortId`
+        /// will be dropped.
         fn run(
             context: &mut Context,
             state: &mut UniquePtr<State>,
             inputs: Vec<Input>,
         ) -> Result<Vec<Output>>;
 
+        /// This method is called after the run, and can be used for
+        /// further analysis and adjustment over the computed data.
+        /// E.g. flooring a value to a specified MAX, or check if it is within
+        /// a given range.
+        ///
         fn output_rule(
             context: &mut Context,
             state: &mut UniquePtr<State>,

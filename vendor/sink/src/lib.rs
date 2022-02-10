@@ -24,10 +24,21 @@ extern crate zenoh_flow;
 
 #[cxx::bridge(namespace = "zenoh::flow")]
 pub mod ffi {
+    /// Context is a structure provided by Zenoh Flow to access
+    /// the execution context directly from the nodes.
+    ///
+    /// It contains the `mode` as size_t.
     pub struct Context {
         pub mode: usize,
     }
 
+    /// A Zenoh Flow Input data.
+    ///
+    /// It contains:
+    /// - `port_id` the port id from where the data was received.
+    /// - `data` as std::vector<uint8_t>.
+    /// - `timestamp` an uHLC timestamp associated with the data.
+    /// - `e2d_deadline_miss` list of `E2EDeadlineMiss`.
     #[derive(Debug)]
     pub struct Input {
         pub data: Vec<u8>,
@@ -35,6 +46,8 @@ pub mod ffi {
         pub e2d_deadline_miss: Vec<E2EDeadlineMiss>,
     }
 
+    /// A End to End Deadline.
+    /// A deadline can apply for a whole graph or for a subpart of it.
     #[derive(Debug)]
     pub struct E2EDeadlineMiss {
         pub from: OutputDescriptor,
@@ -43,12 +56,29 @@ pub mod ffi {
         pub end: u64,
     }
 
+    /// Describes one output
+    ///
+    /// Example:
+    ///
+    /// ```yaml
+    /// node : Counter
+    /// output : Counter
+    /// ```
+    ///
     #[derive(Debug)]
     pub struct OutputDescriptor {
         pub node: String,
         pub output: String,
     }
 
+    /// Describes one input
+    ///
+    /// Example:
+    ///
+    /// ```yaml
+    /// node : SumOperator
+    /// input : Number
+    /// ```
     #[derive(Debug)]
     pub struct InputDescriptor {
         pub node: String,
@@ -58,10 +88,23 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("sink.hpp");
 
+        /// This type abstracts the user's state type inside Zenoh Flow.
+        ///
         type State;
 
+        /// This method is used to initialize the state of the node.
+        /// It is called by the Zenoh Flow runtime when initializing the data flow
+        /// graph.
+        /// An example of node state is files that should be opened, connection
+        /// to devices or internal configuration.
         fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
+        /// This method is the actual one consuming the data.
+        /// It is triggered whenever data arrives on the Sink input.
+        /// This method is `async` therefore I/O is possible, e.g. writing to
+        /// a file or interacting with an external device.
+        ///
+        /// The Sink can access its state and context while executing,
         fn run(context: &mut Context, state: &mut UniquePtr<State>, input: Input) -> Result<()>;
     }
 }

@@ -21,6 +21,11 @@ extern crate zenoh_flow;
 
 #[cxx::bridge(namespace = "zenoh::flow")]
 pub mod ffi {
+
+    /// Context is a structure provided by Zenoh Flow to access
+    /// the execution context directly from the nodes.
+    ///
+    /// It contains the `mode` as size_t.
     pub struct Context {
         pub mode: usize,
     }
@@ -28,10 +33,24 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("source.hpp");
 
+        /// This type abstracts the user's state type inside Zenoh Flow.
+        ///
         type State;
 
+        /// This method is used to initialize the state of the node.
+        /// It is called by the Zenoh Flow runtime when initializing the data flow
+        /// graph.
+        /// An example of node state is files that should be opened, connection
+        /// to devices or internal configuration.
         fn initialize(json_configuration: &str) -> UniquePtr<State>;
 
+        /// This method is the actual one producing the data.
+        /// It is triggered on a loop, and if the `period` is specified
+        /// in the descriptor it is triggered with the given period.
+        /// This method is `async` therefore I/O is possible, e.g. reading data
+        /// from a file/external device.
+        ///
+        /// The Source can access its state and context while executing,
         fn run(context: &mut Context, state: &mut UniquePtr<State>) -> Result<Vec<u8>>;
     }
 }
